@@ -161,9 +161,7 @@ export default function Orders() {
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="Transaksi"
         title="Data pengiriman"
-        description="Kelola pengiriman barang, hubungkan pengirim dengan pelanggan, kurir, dan gudang operasional."
         actions={
           <div className="flex gap-2">
             <button 
@@ -213,10 +211,10 @@ export default function Orders() {
         isOpen={isModalOpen}
         onClose={handleCloseModal}
         title="Buat Pengiriman"
-        description="Isi formulir untuk membuat transaksi pengiriman baru."
+        description="Isi formulir untuk pengiriman baru."
       >
         <form className="space-y-4" onSubmit={handleSubmit}>
-          <FormField label="Pelanggan Penerima">
+          <FormField label="Pelanggan">
             <select
               className={inputClass}
               value={formData.idpelanggan}
