@@ -115,9 +115,7 @@ export default function Warehouses() {
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="Master data"
         title="Data gudang"
-        description="Kelola lokasi gudang dengan visual yang bersih dan tidak ramai."
         actions={
           <div className="flex gap-2">
             <button 
