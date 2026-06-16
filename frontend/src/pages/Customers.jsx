@@ -116,9 +116,7 @@ export default function Customers() {
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="Master data"
         title="Data pelanggan"
-        description="Kelola pelanggan dalam tampilan yang lebih bersih, ringan, dan mudah dipindai."
         actions={
           <div className="flex gap-2">
             <button 
