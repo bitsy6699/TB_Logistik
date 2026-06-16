@@ -1,0 +1,154 @@
+{
+  "users": [
+    {
+      "id": 1,
+      "username": "admin",
+      "password": "admin123",
+      "name": "Ayu Permata",
+      "role": "Administrator"
+    },
+    {
+      "id": 2,
+      "username": "operator",
+      "password": "operator123",
+      "name": "Raka Pratama",
+      "role": "Operator"
+    }
+  ],
+  "customers": [
+    {
+      "idpelanggan": 1,
+      "nama": "Siti Aminah",
+      "alamat": "Jl. Cempaka No. 10, Jakarta",
+      "notelepon": "08123456789"
+    },
+    {
+      "idpelanggan": 2,
+      "nama": "PT Sinar Jaya",
+      "alamat": "Jl. Gatot Subroto No. 88, Jakarta Selatan",
+      "notelepon": "0215551234"
+    },
+    {
+      "idpelanggan": 3,
+      "nama": "Toko Maju",
+      "alamat": "Jl. Merdeka No. 21, Bandung",
+      "notelepon": "081299887766"
+    }
+  ],
+  "couriers": [
+    {
+      "idkurir": 1,
+      "nama": "Budi Santoso",
+      "notelepon": "081212345678",
+      "kendaraan": "Motor Box"
+    },
+    {
+      "idkurir": 2,
+      "nama": "Rina Wulandari",
+      "notelepon": "081377788899",
+      "kendaraan": "Mobil Van"
+    },
+    {
+      "idkurir": 3,
+      "nama": "Andi Pratama",
+      "notelepon": "081355566677",
+      "kendaraan": "Motor Besar"
+    }
+  ],
+  "warehouses": [
+    {
+      "idgudang": 1,
+      "namagudang": "Gudang Utama Jakarta",
+      "alamat": "Jl. Raya Industri No. 88",
+      "kota": "Jakarta"
+    },
+    {
+      "idgudang": 2,
+      "namagudang": "Gudang Barat Bandung",
+      "alamat": "Jl. Soekarno Hatta No. 15",
+      "kota": "Bandung"
+    },
+    {
+      "idgudang": 3,
+      "namagudang": "Gudang Selatan Surabaya",
+      "alamat": "Jl. Ahmad Yani No. 44",
+      "kota": "Surabaya"
+    }
+  ],
+  "orders": [
+    {
+      "idpengiriman": "ORD-1001",
+      "tanggal": "12 Jun 2026",
+      "pelanggan": "Siti Aminah",
+      "kurir": "Budi Santoso",
+      "gudang": "Gudang Utama Jakarta",
+      "status": "Selesai",
+      "total": "Rp 185.000"
+    },
+    {
+      "idpengiriman": "ORD-1002",
+      "tanggal": "12 Jun 2026",
+      "pelanggan": "PT Sinar Jaya",
+      "kurir": "Rina Wulandari",
+      "gudang": "Gudang Barat Bandung",
+      "status": "Dalam perjalanan",
+      "total": "Rp 960.000"
+    },
+    {
+      "idpengiriman": "ORD-1003",
+      "tanggal": "13 Jun 2026",
+      "pelanggan": "Toko Maju",
+      "kurir": "Andi Pratama",
+      "gudang": "Gudang Selatan Surabaya",
+      "status": "Menunggu pickup",
+      "total": "Rp 420.000"
+    },
+    {
+      "idpengiriman": "ORD-1004",
+      "tanggal": "13 Jun 2026",
+      "pelanggan": "CV Lestari",
+      "kurir": "Budi Santoso",
+      "gudang": "Gudang Utama Jakarta",
+      "status": "Diproses",
+      "total": "Rp 275.000"
+    }
+  ],
+  "items": [
+    {
+      "idbarang": "BRG-2001",
+      "nama": "Karton Lipat",
+      "pelanggan": "Siti Aminah",
+      "kategori": "Kemasan",
+      "jumlah": 24,
+      "lokasi": "Gudang Utama Jakarta",
+      "status": "Siap kirim"
+    },
+    {
+      "idbarang": "BRG-2002",
+      "nama": "Label Barcode",
+      "pelanggan": "PT Sinar Jaya",
+      "kategori": "Aksesoris",
+      "jumlah": 180,
+      "lokasi": "Gudang Barat Bandung",
+      "status": "Tersedia"
+    },
+    {
+      "idbarang": "BRG-2003",
+      "nama": "Bubble Wrap",
+      "pelanggan": "Toko Maju",
+      "kategori": "Pengaman",
+      "jumlah": 60,
+      "lokasi": "Gudang Selatan Surabaya",
+      "status": "Diproses"
+    },
+    {
+      "idbarang": "BRG-2004",
+      "nama": "Pita Perekat",
+      "pelanggan": "CV Lestari",
+      "kategori": "Packing",
+      "jumlah": 48,
+      "lokasi": "Gudang Utama Jakarta",
+      "status": "Tersedia"
+    }
+  ]
+}
