@@ -42,15 +42,32 @@ const orderColumns = [
   },
   { 
     key: 'tanggal', 
-    label: 'Tanggal Kirim',
+    label: 'Tgl Kirim',
     render: (row) => {
-      const date = row.tanggalpengiriman || row.tanggal;
-      if (!date) return '—';
-      if (date.includes('T') || date.includes('-')) {
-        return new Date(date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
+      const d = row.tanggalpengiriman || row.tanggal;
+      if (!d) return '—';
+      if (d.includes('T') || d.includes('-')) {
+        return new Date(d).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
       }
-      return date;
+      return d;
     }
+  },
+  {
+    key: 'nama_pengirim',
+    label: 'Pengirim',
+    render: (row) => row.nama_pengirim || '—'
+  },
+  {
+    key: 'estimasi_sampai',
+    label: 'Estimasi',
+    render: (row) => row.estimasi_sampai
+      ? new Date(row.estimasi_sampai).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })
+      : '—'
+  },
+  {
+    key: 'total',
+    label: 'Total',
+    render: (row) => row.total ? `Rp ${Number(row.total).toLocaleString('id-ID')}` : '—'
   },
   {
     key: 'status',
@@ -90,13 +107,15 @@ export default function Orders() {
       const [custRes, courRes, whRes] = await Promise.all([
         api.get('/api/customers'),
         api.get('/api/kurirs'),
-        api.get('/api/gudangs')
+        api.get('/api/gudangs'),
       ]);
       setCustomers(custRes.data);
       setCouriers(courRes.data);
       setWarehouses(whRes.data);
+      setError('');
     } catch (err) {
       console.error('Gagal memuat data untuk form:', err);
+      setError('Gagal memuat data pendukung form. Beberapa fitur mungkin tidak tersedia.');
     }
   }, []);
 
@@ -104,17 +123,6 @@ export default function Orders() {
     fetchOrders();
     fetchDropdownData();
   }, [fetchOrders, fetchDropdownData]);
-
-  // Set default dates when dropdown data is fetched
-  useEffect(() => {
-    const todayStr = new Date().toISOString().split('T')[0];
-    const threeDaysLater = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-    setFormData((current) => ({
-      ...current,
-      tanggalpengiriman: todayStr,
-      estimasi_sampai: threeDaysLater,
-    }));
-  }, []);
 
   const handleOpenModal = () => {
     const todayStr = new Date().toISOString().split('T')[0];
@@ -245,14 +253,7 @@ export default function Orders() {
               className={inputClass}
               value={formData.idkurir}
               onChange={(event) => {
-                const val = event.target.value;
-                const courier = couriers.find((k) => k.idkurir === Number(val));
-                setFormData((current) => ({
-                  ...current,
-                  idkurir: val,
-                  nama_pengirim: courier ? courier.nama : current.nama_pengirim,
-                  no_hp_pengirim: courier ? courier.notelepon : current.no_hp_pengirim,
-                }));
+                setFormData((current) => ({ ...current, idkurir: event.target.value }));
               }}
               required
             >

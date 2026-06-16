@@ -18,18 +18,22 @@ const quickLinks = [
   {
     to: '/customers',
     title: 'Kelola pelanggan',
+    description: 'Tambah, edit, dan hapus data pelanggan.',
   },
   {
     to: '/kurirs',
     title: 'Kelola kurir',
+    description: 'Manage kurir dan data kendaraan.',
   },
   {
     to: '/gudangs',
     title: 'Kelola gudang',
+    description: 'Kelola lokasi gudang transit.',
   },
   {
     to: '/barangs',
     title: 'Lihat barang',
+    description: 'Monitoring barang dan status stok.',
   },
 ];
 

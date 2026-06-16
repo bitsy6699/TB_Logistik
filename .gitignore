@@ -1,0 +1,12 @@
+frontend/node_modules/
+backend/node_modules/
+.env
+dist/
+frontend/src/generated.css
+*.log
+.kilo/
+err.log
+.DS_Store
+Thumbs.db
+coverage/
+

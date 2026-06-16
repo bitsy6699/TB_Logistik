@@ -11,6 +11,8 @@ const navigation = [
   { to: '/kurirs', label: 'Data Kurir' },
   { to: '/gudangs', label: 'Data Gudang' },
   { to: '/barangs', label: 'Data Barang' },
+  { to: '/treks', label: 'Lacak Kiriman' },
+  { to: '/penyimpanans', label: 'Penyimpanan' },
 ];
 
 function getInitials(name) {

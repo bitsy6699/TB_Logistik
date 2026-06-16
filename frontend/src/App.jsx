@@ -8,6 +8,8 @@ import Orders from './pages/Orders';
 import Couriers from './pages/Couriers';
 import Warehouses from './pages/Warehouses';
 import Items from './pages/Items';
+import Treks from './pages/Treks';
+import Penyimpanans from './pages/Penyimpanans';
 import Login from './pages/Login';
 import NotFound from './pages/NotFound';
 
@@ -27,6 +29,8 @@ function App() {
               <Route path="kurirs" element={<Couriers />} />
               <Route path="gudangs" element={<Warehouses />} />
               <Route path="barangs" element={<Items />} />
+              <Route path="treks" element={<Treks />} />
+              <Route path="penyimpanans" element={<Penyimpanans />} />
               <Route path="*" element={<NotFound />} />
             </Route>
           </Route>
