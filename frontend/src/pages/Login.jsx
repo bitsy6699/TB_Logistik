@@ -3,6 +3,7 @@ import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import FormField from '../components/FormField';
 import { inputClass, primaryButtonClass } from '../components/ui';
 import { useAuth } from '../context/AuthContext';
+import logoImg from '../asset/logo.jpg';
 
 const defaultForm = {
   username: '',
@@ -48,11 +49,14 @@ export default function Login() {
       <div className="relative w-full max-w-md space-y-8">
         <div className="flex flex-col items-center text-center">
           {/* Logo / Delivery Icon */}
-          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-teal-600 text-white shadow-lg shadow-teal-600/20 animate-fade-in">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-9 w-9" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-            </svg>
+          <div className="flex h-20 w-20 items-center justify-center bg-transparent animate-fade-in">
+            <img 
+              src={logoImg} 
+              alt="Logo" 
+              className="h-full w-full object-contain rounded-2xl" 
+            />
           </div>
+
           
           <h2 className="mt-6 font-display text-3xl font-semibold tracking-tight text-slate-900">
             Masuk ke LogistikApp
