@@ -40,7 +40,6 @@ export default function Layout() {
           <div className="rounded-[28px] border border-white/10 bg-white/5 p-4">
             <p className="font-display text-xl font-semibold tracking-tight">LogistikApp</p>
             <p className="mt-2 text-sm leading-6 text-slate-400">
-              Minimal operations dashboard for shipment, warehouse, and customer data.
             </p>
           </div>
 
@@ -74,34 +73,18 @@ export default function Layout() {
             ))}
           </nav>
 
-          <div className="mt-auto rounded-[28px] border border-white/10 bg-white/5 p-4 text-sm text-slate-400">
-            <p className="font-medium text-white">Backend trial</p>
-            <p className="mt-1 leading-6">Express API with dummy data for testing.</p>
-            <p className="mt-3 text-xs uppercase tracking-[0.28em] text-slate-500">
-              Port 5001
-            </p>
-          </div>
         </aside>
 
         <div className="flex min-w-0 flex-1 flex-col gap-6">
           <header className="rounded-[32px] border border-slate-200/80 bg-white/85 px-5 py-4 shadow-soft backdrop-blur-sm lg:px-6">
             <div className="flex items-center justify-between gap-4">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.32em] text-teal-700">
-                  Minimal Ops
-                </p>
                 <h1 className="mt-1 font-display text-2xl font-semibold tracking-tight text-slate-950">
                   LogistikApp Admin
                 </h1>
-                <p className="mt-1 text-sm leading-6 text-slate-500">
-                  Login first, then manage data from the dummy backend.
-                </p>
               </div>
 
               <div className="flex items-center gap-3">
-                <span className="hidden rounded-full border border-teal-200 bg-teal-50 px-3 py-1 text-xs font-semibold text-teal-700 sm:inline-flex">
-                  Demo mode
-                </span>
                 <div className="hidden text-right sm:block">
                   <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Signed in as</p>
                   <p className="mt-1 text-sm font-semibold text-slate-950">
