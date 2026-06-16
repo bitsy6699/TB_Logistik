@@ -8,32 +8,28 @@ import StatCard from '../components/StatCard';
 import { primaryButtonClass, secondaryButtonClass } from '../components/ui';
 
 const statConfig = [
-  { key: 'customers', label: 'Total pelanggan', tone: 'teal', note: 'API' },
-  { key: 'kurirs', label: 'Total kurir', tone: 'blue', note: 'API' },
-  { key: 'gudangs', label: 'Total gudang', tone: 'amber', note: 'API' },
-  { key: 'orders', label: 'Total pengiriman', tone: 'slate', note: 'API' },
+  { key: 'customers', label: 'Total pelanggan', tone: 'teal'},
+  { key: 'kurirs', label: 'Total kurir', tone: 'blue'},
+  { key: 'gudangs', label: 'Total gudang', tone: 'amber'},
+  { key: 'orders', label: 'Total pengiriman', tone: 'slate'},
 ];
 
 const quickLinks = [
   {
     to: '/customers',
     title: 'Kelola pelanggan',
-    description: 'Tambahkan dan tinjau daftar pelanggan.',
   },
   {
     to: '/kurirs',
     title: 'Kelola kurir',
-    description: 'Simpan data kurir dan armada pengiriman.',
   },
   {
     to: '/gudangs',
     title: 'Kelola gudang',
-    description: 'Atur lokasi gudang secara rapi.',
   },
   {
     to: '/barangs',
     title: 'Lihat barang',
-    description: 'Pantau data barang percobaan dari backend dummy.',
   },
 ];
 
@@ -96,9 +92,8 @@ export default function Dashboard() {
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="Overview"
         title="Dashboard operasional"
-        description="Ringkasan cepat data pelanggan, kurir, gudang, dan pengiriman dalam tampilan yang lebih bersih dan modern."
+        description="Ringkasan data pelanggan, kurir, gudang, dan pengiriman."
         actions={
           <>
             <button type="button" onClick={loadStats} className={secondaryButtonClass}>
@@ -152,7 +147,6 @@ export default function Dashboard() {
 
         <SectionCard
           title="Aksi cepat"
-          description="Shortcut ke modul yang paling sering dipakai."
         >
           <div className="space-y-3">
             {quickLinks.map((item) => (
@@ -173,36 +167,6 @@ export default function Dashboard() {
           </div>
         </SectionCard>
       </div>
-
-      <SectionCard
-        title="Status sistem"
-        description="Aplikasi frontend ini terhubung ke Express API dummy untuk percobaan."
-      >
-        <div className="grid gap-4 md:grid-cols-3">
-          <div className="rounded-[24px] border border-slate-200 bg-slate-50/70 p-4">
-            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">
-              Backend
-            </p>
-            <p className="mt-2 font-display text-lg font-semibold text-slate-950">
-              http://localhost:5001
-            </p>
-          </div>
-          <div className="rounded-[24px] border border-slate-200 bg-slate-50/70 p-4">
-            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">
-              Rendering
-            </p>
-            <p className="mt-2 font-display text-lg font-semibold text-slate-950">Vite + React</p>
-          </div>
-          <div className="rounded-[24px] border border-slate-200 bg-slate-50/70 p-4">
-            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">
-              Tema
-            </p>
-            <p className="mt-2 font-display text-lg font-semibold text-slate-950">
-              Minimalist modern
-            </p>
-          </div>
-        </div>
-      </SectionCard>
     </div>
   );
 }
