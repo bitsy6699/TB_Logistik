@@ -17,7 +17,7 @@ export default function Login() {
   const [formData, setFormData] = useState(defaultForm);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const redirectTo = location.state?.from?.pathname || '/';
+  const redirectTo = location.state?.from?.pathname || '/dashboard';
 
   if (isAuthenticated) {
     return <Navigate to={redirectTo} replace />;

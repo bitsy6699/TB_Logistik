@@ -12,7 +12,7 @@ export default function NotFound() {
           Halaman ini belum tersedia atau alamatnya tidak cocok dengan navigasi aplikasi.
         </p>
         <Link
-          to="/"
+          to="/dashboard"
           className="mt-6 inline-flex items-center justify-center rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
         >
           Kembali ke Dashboard

@@ -5,7 +5,7 @@ const logoutButtonClass =
   'inline-flex items-center justify-center rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 focus:outline-none focus:ring-4 focus:ring-slate-950/10';
 
 const navigation = [
-  { to: '/', label: 'Dashboard', end: true },
+  { to: '/dashboard', label: 'Dashboard' },
   { to: '/customers', label: 'Data Pelanggan' },
   { to: '/orders', label: 'Data Pengiriman' },
   { to: '/kurirs', label: 'Data Kurir' },
