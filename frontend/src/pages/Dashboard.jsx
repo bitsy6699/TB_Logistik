@@ -93,7 +93,6 @@ export default function Dashboard() {
     <div className="space-y-6">
       <PageHeader
         title="Dashboard operasional"
-        description="Ringkasan data pelanggan, kurir, gudang, dan pengiriman."
         actions={
           <>
             <button type="button" onClick={loadStats} className={secondaryButtonClass}>
