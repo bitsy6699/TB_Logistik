@@ -161,9 +161,7 @@ export default function Items() {
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="Inventory"
         title="Data barang"
-        description="Kelola inventori barang logistik, catat berat dan kaitkan dengan pengiriman yang terdaftar."
         actions={
           <div className="flex gap-2">
             <button 
@@ -200,7 +198,7 @@ export default function Items() {
       <div className="w-full">
         <SectionCard
           title="Daftar barang"
-          description={`${items.length} unit barang logistik terdaftar.`}
+          description={`${items.length} unit terdaftar.`}
         >
           <DataTable
             rows={items}
