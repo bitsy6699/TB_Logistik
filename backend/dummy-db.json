@@ -37,6 +37,12 @@
   ],
   "couriers": [
     {
+      "idkurir": 4,
+      "nama": "Ujang Basoka",
+      "notelepon": "083212133143",
+      "kendaraan": "Motor Astrea"
+    },
+    {
       "idkurir": 1,
       "nama": "Budi Santoso",
       "notelepon": "081212345678",

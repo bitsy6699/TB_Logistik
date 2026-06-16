@@ -279,6 +279,115 @@ function listItems() {
   return clone(store.items);
 }
 
+function createOrder(payload) {
+  const maxNum = store.orders.reduce((max, row) => {
+    const match = String(row.idpengiriman).match(/^ORD-(\d+)$/);
+    return match ? Math.max(max, Number(match[1])) : max;
+  }, 1000);
+  const nextId = `ORD-${maxNum + 1}`;
+
+  const order = {
+    idpengiriman: nextId,
+    tanggal: payload.tanggal || new Intl.DateTimeFormat('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date()),
+    pelanggan: normalizeText(payload.pelanggan),
+    kurir: normalizeText(payload.kurir),
+    gudang: normalizeText(payload.gudang),
+    status: normalizeText(payload.status || 'Diproses'),
+    total: normalizeText(payload.total || 'Rp 0'),
+  };
+
+  store.orders = [order, ...store.orders];
+  persistStore();
+  return clone(order);
+}
+
+function createItem(payload) {
+  const maxNum = store.items.reduce((max, row) => {
+    const match = String(row.idbarang).match(/^BRG-(\d+)$/);
+    return match ? Math.max(max, Number(match[1])) : max;
+  }, 2000);
+  const nextId = `BRG-${maxNum + 1}`;
+
+  const item = {
+    idbarang: nextId,
+    nama: normalizeText(payload.nama),
+    pelanggan: normalizeText(payload.pelanggan),
+    kategori: normalizeText(payload.kategori || 'Umum'),
+    jumlah: Number(payload.jumlah) || 1,
+    lokasi: normalizeText(payload.lokasi),
+    status: normalizeText(payload.status || 'Tersedia'),
+  };
+
+  store.items = [item, ...store.items];
+  persistStore();
+  return clone(item);
+}
+
+function updateCustomer(id, payload) {
+  const idx = store.customers.findIndex((c) => c.idpelanggan === Number(id));
+  if (idx === -1) return null;
+  store.customers[idx] = { ...store.customers[idx], nama: normalizeText(payload.nama), alamat: normalizeText(payload.alamat), notelepon: normalizeText(payload.notelepon) };
+  persistStore();
+  return clone(store.customers[idx]);
+}
+
+function deleteCustomer(id) {
+  const idx = store.customers.findIndex((c) => c.idpelanggan === Number(id));
+  if (idx === -1) return false;
+  store.customers.splice(idx, 1);
+  persistStore();
+  return true;
+}
+
+function updateCourier(id, payload) {
+  const idx = store.couriers.findIndex((k) => k.idkurir === Number(id));
+  if (idx === -1) return null;
+  store.couriers[idx] = { ...store.couriers[idx], nama: normalizeText(payload.nama), notelepon: normalizeText(payload.notelepon), kendaraan: normalizeText(payload.kendaraan) };
+  persistStore();
+  return clone(store.couriers[idx]);
+}
+
+function deleteCourier(id) {
+  const idx = store.couriers.findIndex((k) => k.idkurir === Number(id));
+  if (idx === -1) return false;
+  store.couriers.splice(idx, 1);
+  persistStore();
+  return true;
+}
+
+function updateWarehouse(id, payload) {
+  const idx = store.warehouses.findIndex((g) => g.idgudang === Number(id));
+  if (idx === -1) return null;
+  store.warehouses[idx] = { ...store.warehouses[idx], namagudang: normalizeText(payload.namagudang), alamat: normalizeText(payload.alamat), kota: normalizeText(payload.kota) };
+  persistStore();
+  return clone(store.warehouses[idx]);
+}
+
+function deleteWarehouse(id) {
+  const idx = store.warehouses.findIndex((g) => g.idgudang === Number(id));
+  if (idx === -1) return false;
+  store.warehouses.splice(idx, 1);
+  persistStore();
+  return true;
+}
+
+function updateItem(id, payload) {
+  const idx = store.items.findIndex((b) => b.idbarang === id || b.idbarang === `BRG-${id}`);
+  if (idx === -1) return null;
+  store.items[idx] = { ...store.items[idx], nama: normalizeText(payload.nama_barang || payload.nama), pelanggan: normalizeText(payload.pelanggan || store.items[idx].pelanggan), kategori: normalizeText(payload.kategori || store.items[idx].kategori) };
+  if (payload.berat !== undefined) store.items[idx].berat = Number(payload.berat);
+  persistStore();
+  return clone(store.items[idx]);
+}
+
+function deleteItem(id) {
+  const idx = store.items.findIndex((b) => b.idbarang === id || b.idbarang === `BRG-${id}`);
+  if (idx === -1) return false;
+  store.items.splice(idx, 1);
+  persistStore();
+  return true;
+}
+
 module.exports = {
   createCustomer,
   createCourier,
@@ -288,5 +397,15 @@ module.exports = {
   listWarehouses,
   listOrders,
   listItems,
+  createOrder,
+  createItem,
+  updateCustomer,
+  deleteCustomer,
+  updateCourier,
+  deleteCourier,
+  updateWarehouse,
+  deleteWarehouse,
+  updateItem,
+  deleteItem,
   login,
 };

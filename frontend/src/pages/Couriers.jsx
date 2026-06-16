@@ -5,7 +5,8 @@ import PageHeader from '../components/PageHeader';
 import SectionCard from '../components/SectionCard';
 import DataTable from '../components/DataTable';
 import FormField from '../components/FormField';
-import { inputClass, primaryButtonClass, secondaryButtonClass } from '../components/ui';
+import Modal from '../components/Modal';
+import { inputClass, primaryButtonClass, secondaryButtonClass, dangerButtonClass, smallButtonClass, iconButtonClass } from '../components/ui';
 
 const blankForm = {
   nama: '',
@@ -13,16 +14,11 @@ const blankForm = {
   kendaraan: '',
 };
 
-const courierColumns = [
-  { key: 'idkurir', label: 'ID' },
-  { key: 'nama', label: 'Nama' },
-  { key: 'notelepon', label: 'No Telepon' },
-  { key: 'kendaraan', label: 'Kendaraan' },
-];
-
 export default function Couriers() {
   const [couriers, setCouriers] = useState([]);
   const [formData, setFormData] = useState(blankForm);
+  const [editingId, setEditingId] = useState(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -46,6 +42,34 @@ export default function Couriers() {
     fetchCouriers();
   }, [fetchCouriers]);
 
+  const handleEdit = (row) => {
+    setEditingId(row.idkurir);
+    setFormData({ nama: row.nama, notelepon: row.notelepon, kendaraan: row.kendaraan });
+    setNotice('');
+    setError('');
+    setIsModalOpen(true);
+  };
+
+  const handleCancelEdit = () => {
+    setEditingId(null);
+    setFormData(blankForm);
+    setIsModalOpen(false);
+  };
+
+  const handleDelete = async (row) => {
+    if (!window.confirm(`Hapus kurir "${row.nama}"?`)) return;
+    setError('');
+    setNotice('');
+    try {
+      await api.delete(`/api/kurirs/${row.idkurir}`);
+      setNotice('Kurir berhasil dihapus.');
+      if (editingId === row.idkurir) handleCancelEdit();
+      await fetchCouriers();
+    } catch (err) {
+      setError(getErrorMessage(err, 'Gagal menghapus kurir.'));
+    }
+  };
+
   const handleSubmit = async (event) => {
     event.preventDefault();
     setSaving(true);
@@ -53,9 +77,16 @@ export default function Couriers() {
     setNotice('');
 
     try {
-      await api.post('/api/kurirs', formData);
+      if (editingId) {
+        await api.put(`/api/kurirs/${editingId}`, formData);
+        setNotice('Kurir berhasil diperbarui.');
+      } else {
+        await api.post('/api/kurirs', formData);
+        setNotice('Kurir berhasil disimpan.');
+      }
       setFormData(blankForm);
-      setNotice('Kurir berhasil disimpan.');
+      setEditingId(null);
+      setIsModalOpen(false);
       await fetchCouriers();
     } catch (submitError) {
       setError(getErrorMessage(submitError, 'Gagal menyimpan data kurir.'));
@@ -64,6 +95,23 @@ export default function Couriers() {
     }
   };
 
+  const courierColumns = [
+    { key: 'idkurir', label: 'ID' },
+    { key: 'nama', label: 'Nama' },
+    { key: 'notelepon', label: 'No Telepon' },
+    { key: 'kendaraan', label: 'Kendaraan' },
+    {
+      key: '_actions',
+      label: 'Aksi',
+      render: (row) => (
+        <div className="flex gap-2">
+          <button type="button" className={smallButtonClass} onClick={() => handleEdit(row)}>Edit</button>
+          <button type="button" className={dangerButtonClass} onClick={() => handleDelete(row)}>Hapus</button>
+        </div>
+      ),
+    },
+  ];
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -71,9 +119,23 @@ export default function Couriers() {
         title="Data kurir"
         description="Daftar kurir dikurasi dengan tampilan yang lebih tenang dan fokus."
         actions={
-          <button type="button" onClick={fetchCouriers} className={secondaryButtonClass}>
-            Refresh data
-          </button>
+          <div className="flex gap-2">
+            <button 
+              type="button" 
+              onClick={() => {
+                setEditingId(null);
+                setFormData(blankForm);
+                setIsModalOpen(true);
+              }} 
+              className={iconButtonClass}
+              title="Tambah Kurir"
+            >
+              +
+            </button>
+            <button type="button" onClick={fetchCouriers} className={secondaryButtonClass}>
+              Refresh data
+            </button>
+          </div>
         }
       />
 
@@ -89,54 +151,7 @@ export default function Couriers() {
         </div>
       ) : null}
 
-      <div className="grid gap-6 xl:grid-cols-[360px_minmax(0,1fr)]">
-        <SectionCard title="Tambah kurir" description="Simpan identitas kurir beserta armadanya.">
-          <form className="space-y-4" onSubmit={handleSubmit}>
-            <FormField label="Nama kurir">
-              <input
-                type="text"
-                className={inputClass}
-                value={formData.nama}
-                onChange={(event) =>
-                  setFormData((current) => ({ ...current, nama: event.target.value }))
-                }
-                placeholder="Contoh: Budi Santoso"
-                required
-              />
-            </FormField>
-
-            <FormField label="No telepon">
-              <input
-                type="text"
-                className={inputClass}
-                value={formData.notelepon}
-                onChange={(event) =>
-                  setFormData((current) => ({ ...current, notelepon: event.target.value }))
-                }
-                placeholder="Contoh: 081212345678"
-                required
-              />
-            </FormField>
-
-            <FormField label="Kendaraan">
-              <input
-                type="text"
-                className={inputClass}
-                value={formData.kendaraan}
-                onChange={(event) =>
-                  setFormData((current) => ({ ...current, kendaraan: event.target.value }))
-                }
-                placeholder="Contoh: Motor Box"
-                required
-              />
-            </FormField>
-
-            <button type="submit" className={primaryButtonClass} disabled={saving}>
-              {saving ? 'Menyimpan...' : 'Simpan kurir'}
-            </button>
-          </form>
-        </SectionCard>
-
+      <div className="w-full">
         <SectionCard
           title="Daftar kurir"
           description={`${couriers.length} kurir tersimpan di database.`}
@@ -151,6 +166,64 @@ export default function Couriers() {
           />
         </SectionCard>
       </div>
+
+      <Modal
+        isOpen={isModalOpen}
+        onClose={handleCancelEdit}
+        title={editingId ? 'Edit Kurir' : 'Tambah Kurir'}
+        description={editingId ? 'Ubah data kurir lalu simpan.' : 'Simpan identitas kurir beserta armadanya.'}
+      >
+        <form className="space-y-4" onSubmit={handleSubmit}>
+          <FormField label="Nama kurir">
+            <input
+              type="text"
+              className={inputClass}
+              value={formData.nama}
+              onChange={(event) =>
+                setFormData((current) => ({ ...current, nama: event.target.value }))
+              }
+              placeholder="Contoh: Budi Santoso"
+              required
+            />
+          </FormField>
+
+          <FormField label="No telepon">
+            <input
+              type="text"
+              className={inputClass}
+              value={formData.notelepon}
+              onChange={(event) =>
+                setFormData((current) => ({ ...current, notelepon: event.target.value }))
+              }
+              placeholder="Contoh: 081212345678"
+              required
+            />
+          </FormField>
+
+          <FormField label="Kendaraan">
+            <input
+              type="text"
+              className={inputClass}
+              value={formData.kendaraan}
+              onChange={(event) =>
+                setFormData((current) => ({ ...current, kendaraan: event.target.value }))
+              }
+              placeholder="Contoh: Motor Box"
+              required
+            />
+          </FormField>
+
+          <div className="flex gap-3 pt-2">
+            <button type="submit" className={primaryButtonClass} disabled={saving}>
+              {saving ? 'Menyimpan...' : editingId ? 'Perbarui kurir' : 'Simpan kurir'}
+            </button>
+            <button type="button" className={secondaryButtonClass} onClick={handleCancelEdit}>
+              Batal
+            </button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 }
+
