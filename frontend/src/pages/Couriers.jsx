@@ -115,9 +115,7 @@ export default function Couriers() {
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="Master data"
         title="Data kurir"
-        description="Daftar kurir dikurasi dengan tampilan yang lebih tenang dan fokus."
         actions={
           <div className="flex gap-2">
             <button 
