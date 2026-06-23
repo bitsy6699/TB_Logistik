@@ -6,11 +6,15 @@ import SectionCard from '../components/SectionCard';
 import DataTable from '../components/DataTable';
 import FormField from '../components/FormField';
 import Modal from '../components/Modal';
+import { Plus } from 'lucide-react';
+import { exportToCSV } from '../lib/export';
 import { inputClass, primaryButtonClass, secondaryButtonClass, dangerButtonClass, smallButtonClass, iconButtonClass } from '../components/ui';
 
 const blankForm = {
   idbarang: '',
   idgudang: '',
+  jumlah_masuk: '1',
+  jumlah_keluar: '',
   waktu_masuk: '',
   waktu_keluar: '',
 };
@@ -26,20 +30,37 @@ export default function Penyimpanans() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [search, setSearch] = useState('');
+  const [sortColumn, setSortColumn] = useState('waktu_masuk');
+  const [sortOrder, setSortOrder] = useState('desc');
 
   const fetchPenyimpanans = useCallback(async () => {
     setLoading(true);
     setError('');
 
     try {
-      const response = await api.get('/api/penyimpanans');
-      setPenyimpanans(response.data);
+      const params = { page, limit: 10, sort: sortColumn, order: sortOrder };
+      if (search) params.search = search;
+      const response = await api.get('/api/penyimpanans', { params });
+      const d = response.data;
+      if (d && Array.isArray(d.data)) {
+        setPenyimpanans(d.data);
+        setTotalPages(d.totalPages);
+        setTotal(d.total);
+      } else if (Array.isArray(d)) {
+        setPenyimpanans(d);
+        setTotalPages(1);
+        setTotal(d.length);
+      }
     } catch (fetchError) {
       setError(getErrorMessage(fetchError, 'Gagal memuat data penyimpanan.'));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [page, search, sortColumn, sortOrder]);
 
   const fetchItems = useCallback(async () => {
     try {
@@ -67,7 +88,14 @@ export default function Penyimpanans() {
 
   const handleEdit = (row) => {
     setEditingId(row.idpenyimpanan);
-    setFormData({ idbarang: row.idbarang, idgudang: row.idgudang, waktu_masuk: row.waktu_masuk, waktu_keluar: row.waktu_keluar });
+    setFormData({
+      idbarang: row.idbarang,
+      idgudang: row.idgudang,
+      jumlah_masuk: String(row.jumlah_masuk || 1),
+      jumlah_keluar: row.jumlah_keluar ? String(row.jumlah_keluar) : '',
+      waktu_masuk: row.waktu_masuk,
+      waktu_keluar: row.waktu_keluar,
+    });
     setNotice('');
     setError('');
     setIsModalOpen(true);
@@ -101,10 +129,14 @@ export default function Penyimpanans() {
 
     try {
       if (editingId) {
-        await api.put(`/api/penyimpanans/${editingId}`, formData);
+        const payload = { ...formData, jumlah_masuk: Number(formData.jumlah_masuk) || 1 };
+        if (formData.jumlah_keluar) payload.jumlah_keluar = Number(formData.jumlah_keluar);
+        await api.put(`/api/penyimpanans/${editingId}`, payload);
         setNotice('Penyimpanan berhasil diperbarui.');
       } else {
-        await api.post('/api/penyimpanans', formData);
+        const payload = { ...formData, jumlah_masuk: Number(formData.jumlah_masuk) || 1 };
+        if (formData.jumlah_keluar) payload.jumlah_keluar = Number(formData.jumlah_keluar);
+        await api.post('/api/penyimpanans', payload);
         setNotice('Penyimpanan berhasil disimpan.');
       }
       setFormData(blankForm);
@@ -121,7 +153,13 @@ export default function Penyimpanans() {
   const penyimpananColumns = [
     { key: 'idpenyimpanan', label: 'ID' },
     { key: 'nama_barang', label: 'Barang' },
-    { key: 'namagudang', label: 'Gudang' },
+    { key: 'namagudang', label: 'Gudang', sortKey: 'namagudang' },
+    { key: 'jumlah_masuk', label: 'Masuk', sortKey: 'jumlah_masuk', className: 'text-center' },
+    {
+      key: 'jumlah_keluar', label: 'Keluar', sortKey: 'jumlah_keluar',
+      render: (row) => row.jumlah_keluar ?? '—',
+      className: 'text-center',
+    },
     {
       key: 'waktu_masuk', label: 'Waktu Masuk',
       render: (row) => row.waktu_masuk ? new Date(row.waktu_masuk).toLocaleString('id-ID') : '—',
@@ -159,7 +197,10 @@ export default function Penyimpanans() {
               className={iconButtonClass}
               title="Tambah Penyimpanan"
             >
-              +
+              <Plus className="h-5 w-5" />
+            </button>
+            <button type="button" onClick={() => exportToCSV(penyimpanans, penyimpananColumns, 'penyimpanan.csv')} className={smallButtonClass}>
+              Export CSV
             </button>
             <button type="button" onClick={fetchPenyimpanans} className={secondaryButtonClass}>
               Refresh data
@@ -183,7 +224,7 @@ export default function Penyimpanans() {
       <div className="w-full">
         <SectionCard
           title="Daftar penyimpanan"
-          description={`${penyimpanans.length} penyimpanan tersimpan di database.`}
+          description={`${total} penyimpanan tersimpan di database.`}
         >
           <DataTable
             rows={penyimpanans}
@@ -192,6 +233,15 @@ export default function Penyimpanans() {
             getRowKey={(row) => row.idpenyimpanan}
             emptyTitle="Belum ada penyimpanan"
             emptyDescription="Tambahkan penyimpanan pertama untuk mencatat barang di gudang."
+            page={page}
+            totalPages={totalPages}
+            total={total}
+            onPageChange={(p) => { if (p >= 1 && p <= totalPages) setPage(p); }}
+            search={search}
+            onSearchChange={(v) => { setSearch(v); setPage(1); }}
+            sortColumn={sortColumn}
+            sortOrder={sortOrder}
+            onSort={(col, ord) => { setSortColumn(col); setSortOrder(ord); setPage(1); }}
           />
         </SectionCard>
       </div>
@@ -223,10 +273,6 @@ export default function Penyimpanans() {
                   ))}
                 </select>
               </FormField>
-              <FormField label="Waktu Masuk">
-                <input type="datetime-local" className={inputClass} value={formData.waktu_masuk}
-                  onChange={(e) => setFormData((c) => ({...c, waktu_masuk: e.target.value}))} />
-              </FormField>
             </>
           )}
           {editingId && (
@@ -240,6 +286,19 @@ export default function Penyimpanans() {
               </select>
             </FormField>
           )}
+          <FormField label="Jumlah Masuk">
+            <input type="number" min="1" className={inputClass} value={formData.jumlah_masuk}
+              onChange={(e) => setFormData((c) => ({...c, jumlah_masuk: e.target.value}))} required />
+          </FormField>
+          <FormField label="Jumlah Keluar">
+            <input type="number" min="1" className={inputClass} value={formData.jumlah_keluar}
+              onChange={(e) => setFormData((c) => ({...c, jumlah_keluar: e.target.value}))}
+              placeholder="Kosongkan jika belum ada pengeluaran" />
+          </FormField>
+          <FormField label="Waktu Masuk">
+            <input type="datetime-local" className={inputClass} value={formData.waktu_masuk}
+              onChange={(e) => setFormData((c) => ({...c, waktu_masuk: e.target.value}))} required />
+          </FormField>
           <FormField label="Waktu Keluar">
             <input type="datetime-local" className={inputClass} value={formData.waktu_keluar}
               onChange={(e) => setFormData((c) => ({...c, waktu_keluar: e.target.value}))} />

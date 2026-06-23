@@ -6,17 +6,21 @@ import SectionCard from '../components/SectionCard';
 import DataTable from '../components/DataTable';
 import FormField from '../components/FormField';
 import Modal from '../components/Modal';
+import StatusBadge from '../components/StatusBadge';
+import { Plus } from 'lucide-react';
+import { exportToCSV } from '../lib/export';
 import { inputClass, primaryButtonClass, secondaryButtonClass, dangerButtonClass, smallButtonClass, iconButtonClass } from '../components/ui';
 
+const BARANG_STATUSES = ['Tersedia', 'Dalam transit', 'Terkirim', 'Rusak', 'Hilang'];
+
 const blankForm = {
-  idpengiriman: '',
   nama_barang: '',
+  jumlah: '1',
   berat: '',
 };
 
 export default function Items() {
   const [items, setItems] = useState([]);
-  const [orders, setOrders] = useState([]);
   const [formData, setFormData] = useState(blankForm);
   const [editingId, setEditingId] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -24,34 +28,57 @@ export default function Items() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [search, setSearch] = useState('');
+  const [sortColumn, setSortColumn] = useState('idbarang');
+  const [sortOrder, setSortOrder] = useState('asc');
+  const [pendingStatus, setPendingStatus] = useState(null);
+
+  useEffect(() => {
+    if (!pendingStatus) return;
+    const { id, status, oldStatus } = pendingStatus;
+    api.patch(`/api/barangs/${id}/status`, { status })
+      .then(() => {
+        setItems(prev => prev.map(b => b.idbarang === id ? { ...b, status } : b));
+        setNotice(`Status barang #${id} → "${status}"`);
+      })
+      .catch(err => {
+        setError(getErrorMessage(err, 'Gagal memperbarui status.'));
+        setItems(prev => prev.map(b => b.idbarang === id ? { ...b, status: oldStatus } : b));
+      })
+      .finally(() => setPendingStatus(null));
+  }, [pendingStatus]);
 
   const fetchItems = useCallback(async () => {
     setLoading(true);
     setError('');
 
     try {
-      const response = await api.get('/api/barangs');
-      setItems(response.data);
+      const params = { page, limit: 10, sort: sortColumn, order: sortOrder };
+      if (search) params.search = search;
+      const response = await api.get('/api/barangs', { params });
+      const d = response.data;
+      if (d && Array.isArray(d.data)) {
+        setItems(d.data);
+        setTotalPages(d.totalPages);
+        setTotal(d.total);
+      } else if (Array.isArray(d)) {
+        setItems(d);
+        setTotalPages(1);
+        setTotal(d.length);
+      }
     } catch (fetchError) {
       setError(getErrorMessage(fetchError, 'Gagal memuat data barang.'));
     } finally {
       setLoading(false);
     }
-  }, []);
-
-  const fetchOrders = useCallback(async () => {
-    try {
-      const response = await api.get('/api/orders');
-      setOrders(response.data);
-    } catch (err) {
-      console.error('Gagal memuat daftar pengiriman:', err);
-    }
-  }, []);
+  }, [page, search, sortColumn, sortOrder]);
 
   useEffect(() => {
     fetchItems();
-    fetchOrders();
-  }, [fetchItems, fetchOrders]);
+  }, [fetchItems]);
 
   const handleEdit = (row) => {
     const rawId = typeof row.idbarang === 'string' && row.idbarang.startsWith('BRG-')
@@ -59,8 +86,8 @@ export default function Items() {
       : row.idbarang;
     setEditingId(rawId);
     setFormData({
-      idpengiriman: row.idpengiriman || '',
       nama_barang: row.nama_barang || row.nama || '',
+      jumlah: String(row.jumlah || 1),
       berat: row.berat || '',
     });
     setNotice('');
@@ -102,11 +129,12 @@ export default function Items() {
       if (editingId) {
         await api.put(`/api/barangs/${editingId}`, {
           nama_barang: formData.nama_barang,
+          jumlah: Number(formData.jumlah) || 1,
           berat: formData.berat,
         });
         setNotice('Barang berhasil diperbarui.');
       } else {
-        await api.post('/api/barangs', formData);
+        await api.post('/api/barangs', { ...formData, jumlah: Number(formData.jumlah) || 1 });
         setNotice('Barang baru berhasil ditambahkan.');
       }
       setFormData(blankForm);
@@ -129,22 +157,43 @@ export default function Items() {
     { 
       key: 'nama_barang', 
       label: 'Nama Barang',
+      sortKey: 'nama_barang',
       render: (row) => row.nama_barang || row.nama || '—'
     },
     { 
-      key: 'pelanggan', 
-      label: 'Pemilik (Pelanggan)',
-      render: (row) => row.pelanggan || '—'
+      key: 'jumlah',
+      label: 'Qty',
+      sortKey: 'jumlah',
+      className: 'text-center',
     },
     { 
       key: 'berat', 
       label: 'Berat / Deskripsi',
+      sortKey: 'berat',
       render: (row) => row.berat !== undefined && row.berat !== null ? `${row.berat} kg` : (row.kategori || '—')
     },
-    { 
-      key: 'lokasi', 
-      label: 'Lokasi Transit',
-      render: (row) => row.lokasi || 'Gudang Transit'
+    {
+      key: 'status',
+      label: 'Status',
+      sortKey: 'status',
+      render: (row) => (
+        <div className="flex items-center gap-2">
+          <StatusBadge status={row.status} />
+          <select
+            value=""
+            onChange={(e) => {
+              const s = e.target.value;
+              if (s) setPendingStatus({ id: row.idbarang, status: s, oldStatus: row.status });
+            }}
+            className="rounded-lg border border-slate-200 px-1.5 py-1 text-[11px] text-slate-500 outline-none transition hover:border-slate-300 focus:border-slate-400"
+          >
+            <option value="">Ubah</option>
+            {BARANG_STATUSES.filter(s => s !== row.status).map(s => (
+              <option key={s} value={s}>{s}</option>
+            ))}
+          </select>
+        </div>
+      ),
     },
     {
       key: '_actions',
@@ -174,7 +223,7 @@ export default function Items() {
               className={iconButtonClass}
               title="Tambah Barang"
             >
-              +
+              <Plus className="h-5 w-5" />
             </button>
             <button type="button" onClick={fetchItems} className={secondaryButtonClass}>
               Refresh data
@@ -198,7 +247,12 @@ export default function Items() {
       <div className="w-full">
         <SectionCard
           title="Daftar barang"
-          description={`${items.length} unit terdaftar.`}
+          description={`${total} unit terdaftar.`}
+          action={
+            <button type="button" onClick={() => exportToCSV(items, itemColumns, 'barang.csv')} className={smallButtonClass}>
+              Export CSV
+            </button>
+          }
         >
           <DataTable
             rows={items}
@@ -207,6 +261,15 @@ export default function Items() {
             getRowKey={(row, idx) => row.idbarang || idx}
             emptyTitle="Belum ada barang"
             emptyDescription="Tidak ada data barang. Silakan tambah data di form samping."
+            page={page}
+            totalPages={totalPages}
+            total={total}
+            onPageChange={(p) => { if (p >= 1 && p <= totalPages) setPage(p); }}
+            search={search}
+            onSearchChange={(v) => { setSearch(v); setPage(1); }}
+            sortColumn={sortColumn}
+            sortOrder={sortOrder}
+            onSort={(col, ord) => { setSortColumn(col); setSortOrder(ord); setPage(1); }}
           />
         </SectionCard>
       </div>
@@ -215,33 +278,9 @@ export default function Items() {
         isOpen={isModalOpen}
         onClose={handleCancelEdit}
         title={editingId ? 'Edit Barang' : 'Tambah Barang'}
-        description={editingId ? 'Ubah data barang bawaan lalu simpan.' : 'Formulir untuk mencatat barang bawaan dalam pengiriman.'}
+        description={editingId ? 'Ubah data barang lalu simpan.' : 'Formulir untuk menambahkan master barang.'}
       >
         <form className="space-y-4" onSubmit={handleSubmit}>
-          {!editingId && (
-            <FormField label="Kaitkan dengan Pengiriman">
-              <select
-                className={inputClass}
-                value={formData.idpengiriman}
-                onChange={(event) =>
-                  setFormData((current) => ({ ...current, idpengiriman: event.target.value }))
-                }
-                required
-              >
-                <option value="">Pilih Pengiriman</option>
-                {orders.map((o) => {
-                  const displayId = typeof o.idpengiriman === 'number' ? `ORD-${o.idpengiriman}` : o.idpengiriman;
-                  const client = o.nama_pelanggan || o.pelanggan || '—';
-                  return (
-                    <option key={o.idpengiriman} value={o.idpengiriman}>
-                      {displayId} ({client})
-                    </option>
-                  );
-                })}
-              </select>
-            </FormField>
-          )}
-
           <FormField label="Nama Barang">
             <input
               type="text"
@@ -251,6 +290,20 @@ export default function Items() {
                 setFormData((current) => ({ ...current, nama_barang: event.target.value }))
               }
               placeholder="Contoh: Bubble Wrap"
+              required
+            />
+          </FormField>
+
+          <FormField label="Jumlah">
+            <input
+              type="number"
+              min="1"
+              className={inputClass}
+              value={formData.jumlah}
+              onChange={(event) =>
+                setFormData((current) => ({ ...current, jumlah: event.target.value }))
+              }
+              placeholder="Contoh: 10"
               required
             />
           </FormField>

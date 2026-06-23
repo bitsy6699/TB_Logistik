@@ -1,169 +1,296 @@
-# 📦 LogistikApp - Sistem Manajemen Logistik dan Pengiriman
+# LogistikApp — Sistem Manajemen Logistik dan Pengiriman
 
-Sistem informasi manajemen logistik berbasis fullstack web application untuk mencatat data pelanggan, mengelola kurir, memantau gudang penyimpanan, serta melihat daftar barang dan status pengiriman (order). Aplikasi ini dilengkapi dengan sistem login multi-role dan mode database fleksibel (dapat dijalankan dengan MySQL maupun in-memory Mock Store).
-
----
-
-## ✨ Fitur Utama
-
-- **📊 Dashboard**: Ringkasan data statistik aplikasi (jumlah pelanggan, kurir, gudang, pengiriman, dan barang).
-- **👥 Manajemen Pelanggan (Customers)**: Pencatatan identitas pelanggan beserta alamat dan nomor telepon (mendukung Lihat dan Tambah).
-- **🛵 Manajemen Kurir (Couriers)**: Pencatatan data kurir pengirim beserta tipe kendaraan yang digunakan (mendukung Lihat dan Tambah).
-- **🏢 Manajemen Gudang (Warehouses)**: Pengelolaan gudang penyimpanan barang logistik yang tersebar di berbagai kota (mendukung Lihat dan Tambah).
-- **🚚 Manajemen Pengiriman (Orders)**: Pembuatan transaksi pengiriman baru dengan merelasikan data Pelanggan, Kurir, dan Gudang secara dinamis (mendukung Lihat dan Tambah).
-- **📦 Manajemen Barang (Items)**: Penambahan inventori barang logistik lengkap dengan beratnya yang dikaitkan ke rincian transaksi pengiriman (mendukung Lihat dan Tambah).
-- **🔑 Keamanan & Multi-Role**: Sistem login terproteksi (Protected Routes) dengan integrasi tabel `login` MySQL atau fallback dummy store.
-- **💾 Mode Database Fleksibel**: Dapat dijalankan langsung menggunakan basis data MySQL lokal atau mode in-memory (dummy) tanpa memerlukan konfigurasi database eksternal.
+Aplikasi fullstack untuk manajemen logistik: kelola pelanggan, kurir, gudang, barang, dan pengiriman terintegrasi. Dibangun dengan **React (Vite) + Tailwind CSS** di frontend dan **Node.js/Express + MySQL** di backend.
 
 ---
 
-## 🛠️ Teknologi yang Digunakan
+## Fitur
+
+- **Dashboard** — Ringkasan statistik: jumlah pelanggan, kurir, gudang, pengiriman, barang.
+- **Pelanggan** — CRUD data pelanggan (nama, alamat, no. telepon).
+- **Kurir** — CRUD data kurir (nama, no. telepon, kendaraan).
+- **Gudang** — CRUD data gudang (nama, alamat, kota).
+- **Barang** — CRUD master data barang (nama, jumlah, berat, kategori, status). Barang bersifat independen (tidak terikat ke pengiriman).
+- **Pengiriman (Order)** — Buat pengiriman baru dengan memilih pelanggan, kurir, gudang asal, gudang tujuan, dan satu/beberapa barang. Proses multi-tabel dalam satu transaksi.
+- **Lacak Kiriman** — Riwayat lokasi & status tiap pengiriman.
+- **Penyimpanan** — Catatan barang masuk/keluar dari gudang.
+- **Audit Log** — Catatan perubahan data di semua tabel.
+- **Autentikasi JWT** — Login multi-role, proteksi rute.
+- **Export CSV** — Ekspor data tabel ke file CSV.
+
+---
+
+## Teknologi
 
 ### Frontend
+- React 19 + Vite
+- React Router DOM v6
+- Tailwind CSS + shadcn/ui
+- Axios
+- Recharts (dashboard)
 
-- **React.js** (Vite)
-- **React Router DOM** (v6) untuk routing halaman
-- **Tailwind CSS** untuk antarmuka responsif dan modern
-- **Axios** untuk komunikasi data HTTP dengan server
-
-### Backend & Database
-
-- **Node.js** & **Express.js** untuk REST API server
-- **MySQL** (driver `mysql2`) sebagai sistem basis data utama
-- **In-Memory Dummy Database** (`dummy-db.json`) untuk pengujian cepat tanpa database lokal
-- **dotenv** untuk manajemen konfigurasi environment variables
+### Backend
+- Node.js + Express.js
+- MySQL  (mysql2/promise)
+- JWT (jsonwebtoken)
+- bcryptjs
+- dotenv
 
 ---
 
-## 📁 Struktur Proyek
+## Struktur Proyek
 
-```text
+```
 LogistikApp/
 ├── backend/
-│   ├── .env                 # File konfigurasi environment variables
-│   ├── db.js                # Koneksi database MySQL
-│   ├── dummy-db.json        # Database lokal cadangan (mode dummy)
-│   ├── dummyStore.js        # Logika pembacaan & penulisan data dummy
-│   ├── logistik_db.sql      # Skema database MySQL dan stored procedures
-│   ├── package.json         # Dependensi backend
-│   └── server.js            # Entry point Express API Server
+│   ├── .env                    # Konfigurasi koneksi DB & server
+│   ├── middleware/
+│   │   └── auth.js             # Middleware JWT: authenticate & authorize
+│   ├── db.js                   # Koneksi MySQL (pool)
+│   ├── logistik_db.sql         # Skema database + seed data
+│   ├── migrate-db.js           # Script migrasi runtime (tanpa drop DB)
+│   ├── server.js               # Entry point Express API
+│   └── package.json
 │
 ├── frontend/
-│   ├── index.html           # File template utama HTML
-│   ├── package.json         # Dependensi frontend
-│   ├── tailwind.config.js   # Konfigurasi Tailwind CSS
-│   ├── vite.config.js       # Konfigurasi Vite
+│   ├── index.html
+│   ├── vite.config.js
+│   ├── tailwind.config.js
+│   ├── package.json
 │   └── src/
-│       ├── App.jsx          # Konfigurasi router utama React
-│       ├── main.jsx         # Entry point React DOM
-│       ├── index.css        # Entry style Tailwind
-│       ├── components/      # Komponen pakai ulang (Layout, ProtectedRoute, dll.)
-│       ├── context/         # AuthContext untuk status login user
-│       └── pages/           # Halaman utama aplikasi (Dashboard, Customers, dll.)
-└── README.md                # Dokumentasi proyek (file ini)
+│       ├── App.jsx             # Router utama
+│       ├── main.jsx            # Entry point React
+│       ├── index.css           # Tailwind entry
+│       ├── components/         # UI komponen reusable
+│       │   ├── Layout.jsx
+│       │   ├── ProtectedRoute.jsx
+│       │   ├── PageHeader.jsx
+│       │   ├── SectionCard.jsx
+│       │   ├── DataTable.jsx
+│       │   ├── FormField.jsx
+│       │   ├── Modal.jsx
+│       │   ├── StatusBadge.jsx
+│       │   └── ui.js           # Utility class CSS
+│       ├── context/
+│       │   └── AuthContext.jsx  # Auth state management
+│       ├── lib/
+│       │   ├── api.js          # Axios instance + interceptor token
+│       │   ├── auth.js         # localStorage session helper
+│       │   ├── errors.js       # Error message parser
+│       │   └── export.js       # Export CSV logic
+│       └── pages/
+│           ├── Dashboard.jsx
+│           ├── Login.jsx
+│           ├── Customers.jsx
+│           ├── Orders.jsx
+│           ├── Couriers.jsx
+│           ├── Warehouses.jsx
+│           ├── Items.jsx
+│           ├── Treks.jsx
+│           ├── Penyimpanans.jsx
+│           ├── AuditLogs.jsx
+│           └── NotFound.jsx
+└── README.md
 ```
 
 ---
 
-## 🚀 Panduan Instalasi & Menjalankan Aplikasi
+## Instalasi & Menjalankan
 
-### Prerequisites
+### Prasyarat
 
-Pastikan Anda sudah menginstal **Node.js** dan **npm** di komputer Anda.
+- Node.js 18+ dan npm
+- MySQL (XAMPP / MariaDB / standalone)
 
----
-
-### 1. Konfigurasi Backend
-
-Masuk ke folder `backend`:
+### 1. Backend
 
 ```bash
 cd backend
-```
-
-Instal dependensi backend:
-
-```bash
 npm install
 ```
 
-Salin atau buat file konfigurasi `.env` di dalam folder `backend/`:
+Buat file `backend/.env`:
 
 ```ini
 DB_HOST=127.0.0.1
 DB_USER=root
 DB_PASSWORD=
 DB_NAME=logistik_db
-USE_MYSQL=false   # Ubah ke true jika ingin menggunakan MySQL database
 PORT=5001
+JWT_SECRET=su4RaH4s1l4211597!
 ```
 
-#### Pengaturan Basis Data (MySQL)
+Import database:
 
-Jika Anda mengatur `USE_MYSQL=true`:
+```bash
+mysql -u root < logistik_db.sql
+```
 
-1. Buat database baru bernama `logistik_db` di server MySQL Anda (misal: phpMyAdmin/MariaDB).
-2. Import berkas `backend/logistik_db.sql` untuk membuat tabel, relasi, stored procedures, serta memuat data awal.
-3. Sesuaikan `DB_USER` dan `DB_PASSWORD` di `.env` dengan credential server MySQL Anda.
+Atau lewat phpMyAdmin: import `backend/logistik_db.sql`.
 
-#### Menjalankan Server Backend:
+Jalankan server:
 
 ```bash
 npm start
 ```
 
-Server backend akan berjalan di http://localhost:5001.
+Backend berjalan di http://localhost:5001.
 
----
+> Jika database sudah ada (upgrade dari versi lama), jalankan migrasi:
+> ```bash
+> node migrate-db.js
+> ```
 
-### 2. Konfigurasi Frontend
-
-Buka terminal baru dan masuk ke folder `frontend`:
+### 2. Frontend
 
 ```bash
 cd frontend
-```
-
-Instal dependensi frontend:
-
-```bash
 npm install
-```
-
-#### Menjalankan Server Frontend (Development Mode):
-
-```bash
 npm run dev
 ```
 
-Secara default, Vite akan menjalankan frontend di http://localhost:5173.
+Frontend berjalan di http://localhost:5173.
 
 ---
 
-## 🔑 Akun Login Pengujian
+## Akun Login
 
-Gunakan akun di bawah ini untuk masuk ke dalam aplikasi dashboard:
-
-### 1. Jika `USE_MYSQL=true` (Autentikasi MySQL)
-
-Data dibaca langsung dari tabel `login` di database MySQL:
-
-| Email / Username    | Password   | Role              | Keterangan                          |
-| :------------------ | :--------- | :---------------- | :---------------------------------- |
-| **admin@admin.com** | `admin123` | **Administrator** | Akun default di MySQL `logistik_db` |
-
-### 2. Jika `USE_MYSQL=false` (Autentikasi Dummy/Fallback)
-
-Data dibaca dari file lokal `dummy-db.json`:
-
-| Username     | Password      | Role              | Deskripsi                 |
-| :----------- | :------------ | :---------------- | :------------------------ |
-| **admin**    | `admin123`    | **Administrator** | Akses penuh seluruh fitur |
-| **operator** | `operator123` | **Operator**      | Akses terbatas            |
+| Username/Email       | Password   | Role          |
+| :------------------- | :--------- | :------------ |
+| `admin@admin.com`    | `admin123` | Administrator |
 
 ---
 
-## 📝 Catatan Penting
+## Flow Penggunaan Aplikasi
 
-- Saat menggunakan mode `USE_MYSQL=false`, semua perubahan data akan disimpan sementara ke dalam file `backend/dummy-db.json`.
-- Dalam mode `USE_MYSQL=true`, data disimpan secara permanen ke dalam tabel MySQL. Form transaksi pengiriman (order) dan barang akan otomatis memvalidasi relasi _Foreign Key_ ke tabel `customer`, `kurir`, dan `gudang`.
+### Alur Membuat Pengiriman Baru
+
+```
+Login → Buka menu "Pengiriman" → Klik "+" (Buat Pengiriman)
+  │
+  ├─ 1. Pilih Pelanggan → otomatis isi nama, no HP, alamat pengirim
+  ├─ 2. Pilih Gudang Asal (gudang pengirim)
+  ├─ 3. Pilih Kurir
+  ├─ 4. Pilih Gudang Tujuan (gudang transit)
+  ├─ 5. Isi data pengirim (nama, no HP, alamat)
+  ├─ 6. Atur tanggal kirim & estimasi sampai
+  ├─ 7. Pilih Barang + jumlah (bisa tambah multiple barang)
+  └─ 8. Klik "Buat Pengiriman"
+       │
+       └─ Sistem otomatis membuat:
+            ├─ Order baru (tabel `order`)
+            ├─ Relasi barang ke order (tabel `order_barang`)
+            ├─ Catatan penyimpanan barang keluar (tabel `penyimpanan_barang`)
+            ├─ Trek awal pengiriman (tabel `trek`)
+            └─ Audit log
+```
+
+### Alur CRUD Data Master
+
+```
+┌─────────────┐    ┌─────────┐    ┌───────┐    ┌────────┐
+│   Dashboard │    │ Barang  │    │ Kurir │    │ Gudang │
+│ (ringkasan) │    │ (master)│    │(master)│    │(master)│
+└─────────────┘    └─────────┘    └───────┘    └────────┘
+                           \          |          /
+                            \         |         /
+                         ┌─────────────────────┐
+                         │   PENGIRIMAN (Order) │
+                         │  (relasi semua data) │
+                         └─────────────────────┘
+                                  |
+                         ┌─────────────────────┐
+                         │   Lacak Kiriman     │
+                         │   (trek tracking)   │
+                         └─────────────────────┘
+                                  |
+                         ┌─────────────────────┐
+                         │   Penyimpanan       │
+                         │   (log barang gudang)│
+                         └─────────────────────┘
+```
+
+---
+
+## Flow Database
+
+### Entity Relationship Diagram (Relasi Antar Tabel)
+
+```
+customer ──┐
+           │ 1
+           ├────< order >──── 1 ── kurir
+           │     │              │
+           │     │ 1            │ 1
+           │     │              │
+           │  ┌──┴───┐         │
+           │  │gudang│ (tujuan) │
+           │  └──────┘         │
+           │     │ 1           │
+           │  ┌──┴─────────────┘
+           │  │gudang_pengirim (asal)
+           │  └──
+           │
+           │  order_barang ──── barang ──── penyimpanan_barang ──── gudang
+           │        M             1               M                  1
+           │        │                                                  │
+           │        └──── order ←── 1 ── trek ────────────────────────┘
+           │                                    M
+           └──────────────────────────────────────────────────────────┘
+```
+
+### Struktur Tabel Utama
+
+| Tabel | Keterangan |
+| :--- | :--- |
+| `customer` | Data pelanggan |
+| `kurir` | Data kurir |
+| `gudang` | Data gudang |
+| `barang` | Master barang (independen, tidak terikat order) |
+| `order` | Pengiriman — relasi ke customer, kurir, gudang_tujuan, gudang_pengirim |
+| `order_barang` | Link table many-to-many order ↔ barang |
+| `trek` | Riwayat lacak pengiriman per order |
+| `penyimpanan_barang` | Catatan barang masuk/keluar gudang |
+| `audit_log` | Log perubahan data semua tabel |
+| `login` | User untuk autentikasi |
+
+### Relasi Foreign Key
+
+```
+order.idpelanggan       → customer.idpelanggan       (CASCADE)
+order.idkurir           → kurir.idkurir               (CASCADE)
+order.idgudang          → gudang.idgudang             (CASCADE)
+order.idgudang_pengirim → gudang.idgudang             (SET NULL)
+trek.idpengiriman       → order.idpengiriman          (CASCADE)
+order_barang.idpengiriman → order.idpengiriman        (CASCADE)
+order_barang.idbarang   → barang.idbarang             (CASCADE)
+penyimpanan_barang.idbarang → barang.idbarang         (CASCADE)
+penyimpanan_barang.idgudang → gudang.idgudang         (CASCADE)
+```
+
+### API Endpoint Utama
+
+| Method | Endpoint | Deskripsi |
+| :--- | :--- | :--- |
+| POST | `/api/auth/login` | Login user |
+| GET | `/api/dashboard` | Statistik dashboard |
+| GET/POST | `/api/customers` | CRUD pelanggan |
+| GET/POST | `/api/kurirs` | CRUD kurir |
+| GET/POST | `/api/gudangs` | CRUD gudang |
+| GET/POST | `/api/barangs` | CRUD master barang |
+| GET/POST | `/api/orders` | CRUD pengiriman |
+| PATCH | `/api/orders/:id/status` | Update status pengiriman |
+| POST | `/api/pengiriman-terpadu` | Buat pengiriman + barang + penyimpanan + trek (1 transaksi) |
+| GET/POST | `/api/treks` | CRUD trek |
+| GET/POST | `/api/penyimpanans` | CRUD penyimpanan barang |
+| GET/POST/DELETE | `/api/audit-logs` | CRUD audit log |
+
+---
+
+## Catatan
+
+- Semua operasi CREATE/UPDATE/DELETE dicatat di tabel `audit_log` dengan data lama (`old_data`) dan data baru (`new_data`).
+- Endpoint `POST /api/pengiriman-terpadu` menggunakan **database transaction** — rollback otomatis jika salah satu langkah gagal.
+- Barang bersifat **master data independen** — bisa ditambahkan/dihapus tanpa terkait order. Hubungan barang ke order dijembatani tabel `order_barang`.
+- Migration script (`migrate-db.js`) aman dijalankan berulang — hanya menambahkan yang belum ada.
+- Frontend menggunakan **axios interceptor** untuk menyisipkan token JWT secara otomatis dari localStorage.

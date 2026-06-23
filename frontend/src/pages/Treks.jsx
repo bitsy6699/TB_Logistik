@@ -6,7 +6,12 @@ import SectionCard from '../components/SectionCard';
 import DataTable from '../components/DataTable';
 import FormField from '../components/FormField';
 import Modal from '../components/Modal';
+import { Plus } from 'lucide-react';
+import { exportToCSV } from '../lib/export';
+import StatusBadge from '../components/StatusBadge';
 import { inputClass, primaryButtonClass, secondaryButtonClass, dangerButtonClass, smallButtonClass, iconButtonClass } from '../components/ui';
+
+const TREK_STATUSES = ['Dalam perjalanan', 'Sampai tujuan', 'Terkirim', 'Diproses', 'Dibatalkan'];
 
 const blankForm = {
   idpengiriman: '',
@@ -24,20 +29,37 @@ export default function Treks() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [search, setSearch] = useState('');
+  const [sortColumn, setSortColumn] = useState('waktuupdate');
+  const [sortOrder, setSortOrder] = useState('desc');
 
   const fetchTreks = useCallback(async () => {
     setLoading(true);
     setError('');
 
     try {
-      const response = await api.get('/api/treks');
-      setTreks(response.data);
+      const params = { page, limit: 10, sort: sortColumn, order: sortOrder };
+      if (search) params.search = search;
+      const response = await api.get('/api/treks', { params });
+      const d = response.data;
+      if (d && Array.isArray(d.data)) {
+        setTreks(d.data);
+        setTotalPages(d.totalPages);
+        setTotal(d.total);
+      } else if (Array.isArray(d)) {
+        setTreks(d);
+        setTotalPages(1);
+        setTotal(d.length);
+      }
     } catch (fetchError) {
       setError(getErrorMessage(fetchError, 'Gagal memuat data lacakan.'));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [page, search, sortColumn, sortOrder]);
 
   const fetchOrders = useCallback(async () => {
     try {
@@ -106,6 +128,21 @@ export default function Treks() {
     }
   };
 
+  const [statusLoading, setStatusLoading] = useState(null);
+
+  const handleStatusChange = async (id, newStatus) => {
+    setStatusLoading(id);
+    try {
+      await api.patch(`/api/treks/${id}/status`, { status: newStatus });
+      setTreks((prev) => prev.map((t) => (t.idtrek === id ? { ...t, status: newStatus } : t)));
+      setNotice('Status berhasil diperbarui.');
+    } catch (err) {
+      setError(getErrorMessage(err, 'Gagal memperbarui status.'));
+    } finally {
+      setStatusLoading(null);
+    }
+  };
+
   const trekColumns = [
     { key: 'idtrek', label: 'ID' },
     {
@@ -118,7 +155,22 @@ export default function Treks() {
       key: 'waktuupdate', label: 'Waktu Update',
       render: (row) => row.waktuupdate ? new Date(row.waktuupdate).toLocaleString('id-ID') : '—',
     },
-    { key: 'status', label: 'Status' },
+    {
+      key: 'status', label: 'Status',
+      render: (row) => (
+        <div className="flex items-center gap-2">
+          <StatusBadge status={row.status} />
+          <select
+            value={row.status}
+            disabled={statusLoading === row.idtrek}
+            onChange={(e) => handleStatusChange(row.idtrek, e.target.value)}
+            className="rounded-full border border-border bg-background px-2 py-0.5 text-xs font-medium text-foreground outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/20"
+          >
+            {TREK_STATUSES.map((s) => (<option key={s} value={s}>{s}</option>))}
+          </select>
+        </div>
+      ),
+    },
     {
       key: '_actions',
       label: 'Aksi',
@@ -147,7 +199,10 @@ export default function Treks() {
               className={iconButtonClass}
               title="Tambah Lacakan"
             >
-              +
+              <Plus className="h-5 w-5" />
+            </button>
+            <button type="button" onClick={() => exportToCSV(treks, trekColumns, 'lacakan.csv')} className={smallButtonClass}>
+              Export CSV
             </button>
             <button type="button" onClick={fetchTreks} className={secondaryButtonClass}>
               Refresh data
@@ -171,7 +226,7 @@ export default function Treks() {
       <div className="w-full">
         <SectionCard
           title="Daftar lacakan"
-          description={`${treks.length} lacakan tersimpan di database.`}
+          description={`${total} lacakan tersimpan di database.`}
         >
           <DataTable
             rows={treks}
@@ -180,6 +235,15 @@ export default function Treks() {
             getRowKey={(row) => row.idtrek}
             emptyTitle="Belum ada lacakan"
             emptyDescription="Tambahkan lacakan pertama untuk mulai melacak pengiriman."
+            page={page}
+            totalPages={totalPages}
+            total={total}
+            onPageChange={(p) => { if (p >= 1 && p <= totalPages) setPage(p); }}
+            search={search}
+            onSearchChange={(v) => { setSearch(v); setPage(1); }}
+            sortColumn={sortColumn}
+            sortOrder={sortOrder}
+            onSort={(col, ord) => { setSortColumn(col); setSortOrder(ord); setPage(1); }}
           />
         </SectionCard>
       </div>
@@ -210,9 +274,11 @@ export default function Treks() {
               placeholder="Contoh: Jakarta - Gudang Utama" required />
           </FormField>
           <FormField label="Status">
-            <input type="text" className={inputClass} value={formData.status}
-              onChange={(e) => setFormData((c) => ({...c, status: e.target.value}))}
-              placeholder="Contoh: Dalam perjalanan" required />
+            <select className={inputClass} value={formData.status}
+              onChange={(e) => setFormData((c) => ({...c, status: e.target.value}))} required>
+              <option value="">Pilih Status</option>
+              {TREK_STATUSES.map((s) => (<option key={s} value={s}>{s}</option>))}
+            </select>
           </FormField>
           <div className="flex gap-3 pt-2">
             <button type="submit" className={primaryButtonClass} disabled={saving}>

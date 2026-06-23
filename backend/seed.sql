@@ -1,13 +1,8 @@
 -- ============================================================
--- LogistikApp — Full MySQL Schema + Stored Procedures + Seed Data
--- Jalankan: mysql -u root -p < logistik_db.sql
+-- LogistikApp — Database Setup + Seed Data for MySQL
+-- Jalankan: mysql -u root -p < seed.sql
 -- ============================================================
 
-SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
-START TRANSACTION;
-SET time_zone = "+00:00";
-
--- Database
 CREATE DATABASE IF NOT EXISTS logistik_db CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
 USE logistik_db;
 
@@ -53,7 +48,6 @@ CREATE TABLE IF NOT EXISTS `order` (
   idpelanggan INT(11) NOT NULL,
   idkurir INT(11) NOT NULL,
   idgudang INT(11) NOT NULL,
-  idgudang_pengirim INT(11) DEFAULT NULL,
   nama_pengirim VARCHAR(100) NOT NULL,
   no_hp_pengirim VARCHAR(20) NOT NULL,
   alamat_pengirim TEXT NOT NULL,
@@ -64,18 +58,18 @@ CREATE TABLE IF NOT EXISTS `order` (
   PRIMARY KEY (idpengiriman),
   KEY idpelanggan (idpelanggan),
   KEY idkurir (idkurir),
-  KEY idgudang (idgudang),
-  KEY idgudang_pengirim (idgudang_pengirim)
+  KEY idgudang (idgudang)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS barang (
   idbarang INT(11) NOT NULL AUTO_INCREMENT,
+  idpengiriman INT(11) NOT NULL,
   nama_barang VARCHAR(100) NOT NULL,
-  jumlah INT DEFAULT 1,
   berat DECIMAL(10,2) NOT NULL,
   kategori VARCHAR(100) DEFAULT 'Umum',
   status VARCHAR(50) DEFAULT 'Tersedia',
-  PRIMARY KEY (idbarang)
+  PRIMARY KEY (idbarang),
+  KEY idpengiriman (idpengiriman)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS trek (
@@ -88,40 +82,15 @@ CREATE TABLE IF NOT EXISTS trek (
   KEY idpengiriman (idpengiriman)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-CREATE TABLE IF NOT EXISTS order_barang (
-  id INT(11) NOT NULL AUTO_INCREMENT,
-  idpengiriman INT(11) NOT NULL,
-  idbarang INT(11) NOT NULL,
-  jumlah INT DEFAULT 1,
-  PRIMARY KEY (id),
-  KEY idpengiriman (idpengiriman),
-  KEY idbarang (idbarang)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
 CREATE TABLE IF NOT EXISTS penyimpanan_barang (
   idpenyimpanan INT(11) NOT NULL AUTO_INCREMENT,
   idbarang INT(11) NOT NULL,
   idgudang INT(11) NOT NULL,
-  jumlah_masuk INT DEFAULT 1,
-  jumlah_keluar INT DEFAULT NULL,
   waktu_masuk DATETIME NOT NULL,
   waktu_keluar DATETIME DEFAULT NULL,
   PRIMARY KEY (idpenyimpanan),
   KEY idbarang (idbarang),
   KEY idgudang (idgudang)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
-CREATE TABLE IF NOT EXISTS audit_log (
-  id INT(11) NOT NULL AUTO_INCREMENT,
-  table_name VARCHAR(100) NOT NULL,
-  record_id INT(11) DEFAULT NULL,
-  action VARCHAR(50) NOT NULL,
-  old_data JSON DEFAULT NULL,
-  new_data JSON DEFAULT NULL,
-  user_id INT(11) DEFAULT NULL,
-  user_name VARCHAR(100) DEFAULT NULL,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- -----------------------------------------------------------
@@ -131,15 +100,13 @@ CREATE TABLE IF NOT EXISTS audit_log (
 ALTER TABLE `order`
   ADD CONSTRAINT order_fk_pelanggan FOREIGN KEY (idpelanggan) REFERENCES customer (idpelanggan) ON DELETE CASCADE,
   ADD CONSTRAINT order_fk_kurir FOREIGN KEY (idkurir) REFERENCES kurir (idkurir) ON DELETE CASCADE,
-  ADD CONSTRAINT order_fk_gudang FOREIGN KEY (idgudang) REFERENCES gudang (idgudang) ON DELETE CASCADE,
-  ADD CONSTRAINT order_fk_gudang_pengirim FOREIGN KEY (idgudang_pengirim) REFERENCES gudang (idgudang) ON DELETE SET NULL;
+  ADD CONSTRAINT order_fk_gudang FOREIGN KEY (idgudang) REFERENCES gudang (idgudang) ON DELETE CASCADE;
+
+ALTER TABLE barang
+  ADD CONSTRAINT barang_fk_order FOREIGN KEY (idpengiriman) REFERENCES `order` (idpengiriman) ON DELETE CASCADE;
 
 ALTER TABLE trek
   ADD CONSTRAINT trek_fk_order FOREIGN KEY (idpengiriman) REFERENCES `order` (idpengiriman) ON DELETE CASCADE;
-
-ALTER TABLE order_barang
-  ADD CONSTRAINT ob_fk_order FOREIGN KEY (idpengiriman) REFERENCES `order` (idpengiriman) ON DELETE CASCADE,
-  ADD CONSTRAINT ob_fk_barang FOREIGN KEY (idbarang) REFERENCES barang (idbarang) ON DELETE CASCADE;
 
 ALTER TABLE penyimpanan_barang
   ADD CONSTRAINT simpan_fk_barang FOREIGN KEY (idbarang) REFERENCES barang (idbarang) ON DELETE CASCADE,
@@ -168,7 +135,12 @@ DROP PROCEDURE IF EXISTS BarangPelanggan;
 DELIMITER $$
 CREATE PROCEDURE BarangPelanggan()
 BEGIN
-    SELECT b.* FROM barang b ORDER BY b.idbarang;
+    SELECT b.idbarang, b.idpengiriman, c.nama AS pelanggan, b.nama_barang,
+           b.berat, g.namagudang AS lokasi, b.kategori, b.status
+    FROM barang b
+    JOIN `order` o ON b.idpengiriman = o.idpengiriman
+    JOIN customer c ON o.idpelanggan = c.idpelanggan
+    JOIN gudang g ON o.idgudang = g.idgudang;
 END$$
 DELIMITER ;
 
@@ -188,8 +160,7 @@ DROP PROCEDURE IF EXISTS PenyimpananDetail;
 DELIMITER $$
 CREATE PROCEDURE PenyimpananDetail()
 BEGIN
-    SELECT p.idpenyimpanan, p.idbarang, p.idgudang, p.jumlah_masuk, p.jumlah_keluar,
-           p.waktu_masuk, p.waktu_keluar, b.nama_barang, g.namagudang
+    SELECT p.*, b.nama_barang, g.namagudang
     FROM penyimpanan_barang p
     JOIN barang b ON p.idbarang = b.idbarang
     JOIN gudang g ON p.idgudang = g.idgudang
@@ -201,41 +172,46 @@ DELIMITER ;
 -- SEED DATA
 -- -----------------------------------------------------------
 
+-- Login (admin — password akan di-hash bcrypt saat login pertama)
 INSERT INTO login (id, email, password, role, name) VALUES
-(1, 'admin@admin.com', 'admin123', 'Administrator', 'Admin')
-ON DUPLICATE KEY UPDATE email=email;
+(1, 'admin@admin.com', 'admin123', 'Administrator', 'Admin');
 
+-- Customer
 INSERT INTO customer (idpelanggan, nama, alamat, notelepon) VALUES
 (1, 'Siti Aminah', 'Jl. Cempaka No. 10, Jakarta', '081234567890'),
 (2, 'Budi Santoso', 'Jl. Merdeka No. 25, Bandung', '081234567891'),
 (3, 'Citra Dewi', 'Jl. Kenanga No. 5, Surabaya', '081234567892');
 
+-- Kurir
 INSERT INTO kurir (idkurir, nama, notelepon, kendaraan) VALUES
 (1, 'Ahmad Fauzi', '081212345678', 'Motor Box'),
 (2, 'Doni Prasetyo', '081312345679', 'Mobil Pickup'),
 (3, 'Eko Saputra', '081412345680', 'Motor Box');
 
+-- Gudang
 INSERT INTO gudang (idgudang, namagudang, alamat, kota) VALUES
 (1, 'Gudang Utama Jakarta', 'Jl. Industri Raya No. 88, Jakarta', 'Jakarta'),
 (2, 'Gudang Bandung', 'Jl. Soekarno-Hatta No. 120, Bandung', 'Bandung'),
 (3, 'Gudang Surabaya', 'Jl. Raya Surabaya No. 45, Surabaya', 'Surabaya');
 
+-- Order (mengacu ke customer, kurir, gudang di atas)
 INSERT INTO `order` (idpengiriman, idpelanggan, idkurir, idgudang, nama_pengirim, no_hp_pengirim, alamat_pengirim, estimasi_sampai, tanggalpengiriman, status, total) VALUES
 (1, 1, 1, 1, 'Siti Aminah', '081234567890', 'Jl. Cempaka No. 10, Jakarta', '2026-06-24', '2026-06-21', 'Diproses', 150000.00),
 (2, 2, 2, 2, 'Budi Santoso', '081234567891', 'Jl. Merdeka No. 25, Bandung', '2026-06-25', '2026-06-22', 'Diproses', 250000.00);
 
-INSERT INTO barang (idbarang, nama_barang, jumlah, berat, kategori, status) VALUES
-(1, 'Karton Lipat', 50, 5.00, 'Kemasan', 'Tersedia'),
-(2, 'Bubble Wrap', 100, 2.00, 'Perlindungan', 'Tersedia'),
-(3, 'Label Barcode', 200, 0.50, 'Dokumen', 'Tersedia');
+-- Barang (mengacu ke order di atas)
+INSERT INTO barang (idbarang, idpengiriman, nama_barang, berat, kategori, status) VALUES
+(1, 1, 'Karton Lipat', 5.00, 'Kemasan', 'Tersedia'),
+(2, 1, 'Bubble Wrap', 2.00, 'Perlindungan', 'Tersedia'),
+(3, 2, 'Label Barcode', 0.50, 'Dokumen', 'Tersedia');
 
+-- Trek (mengacu ke order di atas)
 INSERT INTO trek (idtrek, idpengiriman, lokasiterakhir, waktuupdate, status) VALUES
 (1, 1, 'Jakarta - Gudang Utama', NOW(), 'Dalam perjalanan'),
 (2, 2, 'Bandung - Gudang Transit', NOW(), 'Diproses');
 
+-- Penyimpanan Barang (mengacu ke barang dan gudang di atas)
 INSERT INTO penyimpanan_barang (idpenyimpanan, idbarang, idgudang, waktu_masuk, waktu_keluar) VALUES
 (1, 1, 1, NOW(), NULL),
 (2, 2, 1, NOW(), NULL),
 (3, 3, 2, NOW(), NULL);
-
-COMMIT;

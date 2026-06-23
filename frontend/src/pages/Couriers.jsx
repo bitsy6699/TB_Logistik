@@ -6,6 +6,8 @@ import SectionCard from '../components/SectionCard';
 import DataTable from '../components/DataTable';
 import FormField from '../components/FormField';
 import Modal from '../components/Modal';
+import { Plus } from 'lucide-react';
+import { exportToCSV } from '../lib/export';
 import { inputClass, primaryButtonClass, secondaryButtonClass, dangerButtonClass, smallButtonClass, iconButtonClass } from '../components/ui';
 
 const blankForm = {
@@ -23,20 +25,37 @@ export default function Couriers() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [search, setSearch] = useState('');
+  const [sortColumn, setSortColumn] = useState('idkurir');
+  const [sortOrder, setSortOrder] = useState('asc');
 
   const fetchCouriers = useCallback(async () => {
     setLoading(true);
     setError('');
 
     try {
-      const response = await api.get('/api/kurirs');
-      setCouriers(response.data);
+      const params = { page, limit: 10, sort: sortColumn, order: sortOrder };
+      if (search) params.search = search;
+      const response = await api.get('/api/kurirs', { params });
+      const d = response.data;
+      if (d && Array.isArray(d.data)) {
+        setCouriers(d.data);
+        setTotalPages(d.totalPages);
+        setTotal(d.total);
+      } else if (Array.isArray(d)) {
+        setCouriers(d);
+        setTotalPages(1);
+        setTotal(d.length);
+      }
     } catch (fetchError) {
       setError(getErrorMessage(fetchError, 'Gagal memuat data kurir.'));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [page, search, sortColumn, sortOrder]);
 
   useEffect(() => {
     fetchCouriers();
@@ -128,7 +147,10 @@ export default function Couriers() {
               className={iconButtonClass}
               title="Tambah Kurir"
             >
-              +
+              <Plus className="h-5 w-5" />
+            </button>
+            <button type="button" onClick={() => exportToCSV(couriers, courierColumns, 'kurir.csv')} className={smallButtonClass}>
+              Export CSV
             </button>
             <button type="button" onClick={fetchCouriers} className={secondaryButtonClass}>
               Refresh data
@@ -152,7 +174,7 @@ export default function Couriers() {
       <div className="w-full">
         <SectionCard
           title="Daftar kurir"
-          description={`${couriers.length} kurir tersimpan di database.`}
+          description={`${total} kurir tersimpan di database.`}
         >
           <DataTable
             rows={couriers}
@@ -161,6 +183,15 @@ export default function Couriers() {
             getRowKey={(row) => row.idkurir}
             emptyTitle="Belum ada kurir"
             emptyDescription="Tambahkan kurir pertama untuk mulai mengisi tabel ini."
+            page={page}
+            totalPages={totalPages}
+            total={total}
+            onPageChange={(p) => { if (p >= 1 && p <= totalPages) setPage(p); }}
+            search={search}
+            onSearchChange={(v) => { setSearch(v); setPage(1); }}
+            sortColumn={sortColumn}
+            sortOrder={sortOrder}
+            onSort={(col, ord) => { setSortColumn(col); setSortOrder(ord); setPage(1); }}
           />
         </SectionCard>
       </div>

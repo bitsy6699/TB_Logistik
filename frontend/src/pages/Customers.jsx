@@ -7,6 +7,8 @@ import SectionCard from '../components/SectionCard';
 import DataTable from '../components/DataTable';
 import FormField from '../components/FormField';
 import Modal from '../components/Modal';
+import { exportToCSV } from '../lib/export';
+import { Plus } from 'lucide-react';
 import { inputClass, textareaClass, primaryButtonClass, secondaryButtonClass, dangerButtonClass, smallButtonClass, iconButtonClass } from '../components/ui';
 
 const blankForm = {
@@ -24,24 +26,56 @@ export default function Customers() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [search, setSearch] = useState('');
+  const [sortColumn, setSortColumn] = useState('idpelanggan');
+  const [sortOrder, setSortOrder] = useState('asc');
 
   const fetchCustomers = useCallback(async () => {
     setLoading(true);
     setError('');
 
     try {
-      const response = await api.get('/api/customers');
-      setCustomers(response.data);
+      const params = { page, limit: 10, sort: sortColumn, order: sortOrder };
+      if (search) params.search = search;
+      const response = await api.get('/api/customers', { params });
+      const d = response.data;
+      if (d && Array.isArray(d.data)) {
+        setCustomers(d.data);
+        setTotalPages(d.totalPages);
+        setTotal(d.total);
+      } else if (Array.isArray(d)) {
+        setCustomers(d);
+        setTotalPages(1);
+        setTotal(d.length);
+      }
     } catch (fetchError) {
       setError(getErrorMessage(fetchError, 'Gagal memuat data pelanggan.'));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [page, search, sortColumn, sortOrder]);
 
   useEffect(() => {
     fetchCustomers();
   }, [fetchCustomers]);
+
+  const handlePageChange = (newPage) => {
+    if (newPage >= 1 && newPage <= totalPages) setPage(newPage);
+  };
+
+  const handleSearchChange = (value) => {
+    setSearch(value);
+    setPage(1);
+  };
+
+  const handleSort = (column, order) => {
+    setSortColumn(column);
+    setSortOrder(order);
+    setPage(1);
+  };
 
   const handleEdit = (row) => {
     setEditingId(row.idpelanggan);
@@ -129,7 +163,7 @@ export default function Customers() {
               className={iconButtonClass}
               title="Tambah Pelanggan"
             >
-              +
+              <Plus className="h-5 w-5" />
             </button>
             <button type="button" onClick={fetchCustomers} className={secondaryButtonClass}>
               Refresh data
@@ -153,14 +187,16 @@ export default function Customers() {
       <div className="w-full">
         <SectionCard
           title="Daftar pelanggan"
-          description={`${customers.length} pelanggan tersimpan di database.`}
+          description={`${total} pelanggan tersimpan di database.`}
           action={
-            <Link
-              to="/orders"
-              className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
-            >
-              Lihat pengiriman
-            </Link>
+            <div className="flex gap-2">
+              <button type="button" onClick={() => exportToCSV(customers, customerColumns, 'pelanggan.csv')} className={smallButtonClass}>
+                Export CSV
+              </button>
+              <Link to="/orders" className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50">
+                Lihat pengiriman
+              </Link>
+            </div>
           }
         >
           <DataTable
@@ -170,6 +206,15 @@ export default function Customers() {
             getRowKey={(row) => row.idpelanggan}
             emptyTitle="Belum ada pelanggan"
             emptyDescription="Tambahkan pelanggan pertama untuk mulai mengisi tabel ini."
+            page={page}
+            totalPages={totalPages}
+            total={total}
+            onPageChange={handlePageChange}
+            search={search}
+            onSearchChange={handleSearchChange}
+            sortColumn={sortColumn}
+            sortOrder={sortOrder}
+            onSort={handleSort}
           />
         </SectionCard>
       </div>

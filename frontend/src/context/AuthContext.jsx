@@ -1,24 +1,13 @@
 /* eslint-disable react-refresh/only-export-components */
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useCallback, useContext, useMemo, useState } from 'react';
 import api from '../lib/api';
-import { clearSession, readSession, writeSession } from '../lib/auth';
+import { readSession, writeSession, clearSession } from '../lib/auth';
 import { getErrorMessage } from '../lib/errors';
 
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
   const [session, setSession] = useState(() => readSession());
-
-  useEffect(() => {
-    if (session?.token) {
-      api.defaults.headers.common.Authorization = `Bearer ${session.token}`;
-      writeSession(session);
-      return;
-    }
-
-    delete api.defaults.headers.common.Authorization;
-    clearSession();
-  }, [session]);
 
   const login = useCallback(async ({ username, password }) => {
     try {
@@ -32,6 +21,7 @@ export function AuthProvider({ children }) {
         user: response.data.user,
       };
 
+      writeSession(nextSession);
       setSession(nextSession);
       return nextSession;
     } catch (error) {
@@ -40,6 +30,7 @@ export function AuthProvider({ children }) {
   }, []);
 
   const logout = useCallback(() => {
+    clearSession();
     setSession(null);
   }, []);
 
