@@ -73,6 +73,7 @@ CREATE TABLE IF NOT EXISTS barang (
   nama_barang VARCHAR(100) NOT NULL,
   jumlah INT DEFAULT 1,
   berat DECIMAL(10,2) NOT NULL,
+  harga DECIMAL(12,2) DEFAULT 0,
   kategori VARCHAR(100) DEFAULT 'Umum',
   status VARCHAR(50) DEFAULT 'Tersedia',
   PRIMARY KEY (idbarang)
@@ -224,10 +225,10 @@ INSERT INTO `order` (idpengiriman, idpelanggan, idkurir, idgudang, nama_pengirim
 (1, 1, 1, 1, 'Siti Aminah', '081234567890', 'Jl. Cempaka No. 10, Jakarta', '2026-06-24', '2026-06-21', 'Diproses', 150000.00),
 (2, 2, 2, 2, 'Budi Santoso', '081234567891', 'Jl. Merdeka No. 25, Bandung', '2026-06-25', '2026-06-22', 'Diproses', 250000.00);
 
-INSERT INTO barang (idbarang, nama_barang, jumlah, berat, kategori, status) VALUES
-(1, 'Karton Lipat', 50, 5.00, 'Kemasan', 'Tersedia'),
-(2, 'Bubble Wrap', 100, 2.00, 'Perlindungan', 'Tersedia'),
-(3, 'Label Barcode', 200, 0.50, 'Dokumen', 'Tersedia');
+INSERT INTO barang (idbarang, nama_barang, jumlah, berat, harga, kategori, status) VALUES
+(1, 'Karton Lipat', 50, 5.00, 5000, 'Kemasan', 'Tersedia'),
+(2, 'Bubble Wrap', 100, 2.00, 2500, 'Perlindungan', 'Tersedia'),
+(3, 'Label Barcode', 200, 0.50, 1000, 'Dokumen', 'Tersedia');
 
 INSERT INTO trek (idtrek, idpengiriman, lokasiterakhir, waktuupdate, status) VALUES
 (1, 1, 'Jakarta - Gudang Utama', NOW(), 'Dalam perjalanan'),

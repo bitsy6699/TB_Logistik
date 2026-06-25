@@ -85,7 +85,12 @@ export default function Couriers() {
       if (editingId === row.idkurir) handleCancelEdit();
       await fetchCouriers();
     } catch (err) {
-      setError(getErrorMessage(err, 'Gagal menghapus kurir.'));
+      const msg = err?.response?.data?.message || '';
+      if (msg.includes('masih memiliki')) {
+        setError(msg);
+      } else {
+        setError(getErrorMessage(err, 'Gagal menghapus kurir.'));
+      }
     }
   };
 

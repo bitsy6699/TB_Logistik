@@ -17,6 +17,7 @@ const blankForm = {
   nama_barang: '',
   jumlah: '1',
   berat: '',
+  harga: '',
 };
 
 export default function Items() {
@@ -89,6 +90,7 @@ export default function Items() {
       nama_barang: row.nama_barang || row.nama || '',
       jumlah: String(row.jumlah || 1),
       berat: row.berat || '',
+      harga: row.harga ? String(row.harga) : '',
     });
     setNotice('');
     setError('');
@@ -125,16 +127,42 @@ export default function Items() {
     setError('');
     setNotice('');
 
+    const numBerat = Number(formData.berat);
+    const numJumlah = Number(formData.jumlah) || 1;
+    const numHarga = Number(formData.harga) || 0;
+
+    if (numBerat <= 0) {
+      setError('Berat barang harus lebih dari 0 kg.');
+      setSaving(false);
+      return;
+    }
+    if (numJumlah < 1) {
+      setError('Jumlah barang minimal 1.');
+      setSaving(false);
+      return;
+    }
+    if (numHarga < 0) {
+      setError('Harga tidak boleh negatif.');
+      setSaving(false);
+      return;
+    }
+
     try {
       if (editingId) {
         await api.put(`/api/barangs/${editingId}`, {
           nama_barang: formData.nama_barang,
-          jumlah: Number(formData.jumlah) || 1,
-          berat: formData.berat,
+          jumlah: numJumlah,
+          berat: numBerat,
+          harga: numHarga,
         });
         setNotice('Barang berhasil diperbarui.');
       } else {
-        await api.post('/api/barangs', { ...formData, jumlah: Number(formData.jumlah) || 1 });
+        await api.post('/api/barangs', {
+          nama_barang: formData.nama_barang,
+          jumlah: numJumlah,
+          berat: numBerat,
+          harga: numHarga,
+        });
         setNotice('Barang baru berhasil ditambahkan.');
       }
       setFormData(blankForm);
@@ -171,6 +199,12 @@ export default function Items() {
       label: 'Berat / Deskripsi',
       sortKey: 'berat',
       render: (row) => row.berat !== undefined && row.berat !== null ? `${row.berat} kg` : (row.kategori || '—')
+    },
+    {
+      key: 'harga',
+      label: 'Harga',
+      sortKey: 'harga',
+      render: (row) => row.harga ? `Rp ${Number(row.harga).toLocaleString('id-ID')}` : '—'
     },
     {
       key: 'status',
@@ -312,6 +346,7 @@ export default function Items() {
             <input
               type="number"
               step="0.01"
+              min="0.01"
               className={inputClass}
               value={formData.berat}
               onChange={(event) =>
@@ -319,6 +354,20 @@ export default function Items() {
               }
               placeholder="Contoh: 12.5"
               required
+            />
+          </FormField>
+
+          <FormField label="Harga (Rp)">
+            <input
+              type="number"
+              step="100"
+              min="0"
+              className={inputClass}
+              value={formData.harga}
+              onChange={(event) =>
+                setFormData((current) => ({ ...current, harga: event.target.value }))
+              }
+              placeholder="Contoh: 5000"
             />
           </FormField>
 

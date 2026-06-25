@@ -22,6 +22,7 @@ async function migrateDb() {
     try { await conn.query('ALTER TABLE `barang` ADD COLUMN `kategori` VARCHAR(100) DEFAULT \'Umum\''); } catch (e) { if (!e.message.includes('Duplicate')) throw e; }
     try { await conn.query('ALTER TABLE `barang` ADD COLUMN `status` VARCHAR(50) DEFAULT \'Tersedia\''); } catch (e) { if (!e.message.includes('Duplicate')) throw e; }
     try { await conn.query('ALTER TABLE `barang` ADD COLUMN `jumlah` INT DEFAULT 1'); } catch (e) { if (!e.message.includes('Duplicate')) throw e; }
+    try { await conn.query('ALTER TABLE `barang` ADD COLUMN `harga` DECIMAL(12,2) DEFAULT 0'); } catch (e) { if (!e.message.includes('Duplicate')) throw e; }
 
     console.log('Making `barang` independent (drop idpengiriman FK & column)...');
     const [fkRows] = await conn.query(`SELECT CONSTRAINT_NAME FROM information_schema.TABLE_CONSTRAINTS

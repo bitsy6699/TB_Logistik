@@ -236,6 +236,18 @@ export default function Orders() {
     setError('');
     setNotice('');
 
+    const today = new Date().toISOString().split('T')[0];
+    if (formData.tanggalpengiriman < today) {
+      setError('Tanggal pengiriman tidak boleh sebelum hari ini.');
+      setSaving(false);
+      return;
+    }
+    if (formData.estimasi_sampai < formData.tanggalpengiriman) {
+      setError('Estimasi sampai tidak boleh sebelum tanggal pengiriman.');
+      setSaving(false);
+      return;
+    }
+
     const validItems = formData.items.filter(item => item.idbarang);
     if (validItems.length === 0) {
       setError('Minimal 1 barang harus dipilih.');
@@ -453,6 +465,7 @@ export default function Orders() {
                 type="date"
                 className={inputClass}
                 value={formData.tanggalpengiriman}
+                min={new Date().toISOString().split('T')[0]}
                 onChange={(event) =>
                   setFormData((current) => ({ ...current, tanggalpengiriman: event.target.value }))
                 }
@@ -465,6 +478,7 @@ export default function Orders() {
                 type="date"
                 className={inputClass}
                 value={formData.estimasi_sampai}
+                min={formData.tanggalpengiriman || new Date().toISOString().split('T')[0]}
                 onChange={(event) =>
                   setFormData((current) => ({ ...current, estimasi_sampai: event.target.value }))
                 }
@@ -482,6 +496,9 @@ export default function Orders() {
             </div>
             {formData.items.map((item, idx) => {
               const selectedBarang = allBarang.find(b => Number(b.idbarang) === Number(item.idbarang));
+              const harga = selectedBarang ? Number(selectedBarang.harga) || 0 : 0;
+              const qty = Number(item.jumlah) || 0;
+              const subtotal = harga * qty;
               return (
               <div key={idx} className="mb-3 rounded-2xl border border-border bg-accent/30 p-4">
                 <div className="mb-2 flex items-center justify-between">
@@ -509,7 +526,7 @@ export default function Orders() {
                     </select>
                   </FormField>
                   {selectedBarang && (
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-3 gap-3">
                       <FormField label="Jumlah">
                         <input
                           type="number"
@@ -520,17 +537,39 @@ export default function Orders() {
                           onChange={(e) => handleItemChange(idx, 'jumlah', e.target.value === '' ? '' : Number(e.target.value))}
                         />
                       </FormField>
-                      <div className="flex items-end pb-3">
-                        <p className="text-xs text-muted-foreground">
-                          Berat: {selectedBarang.berat} kg
-                        </p>
-                      </div>
+                      <FormField label="@ Harga">
+                        <input
+                          type="text"
+                          className={`${inputClass} bg-muted/50`}
+                          value={harga ? `Rp ${harga.toLocaleString('id-ID')}` : '—'}
+                          readOnly
+                        />
+                      </FormField>
+                      <FormField label="Subtotal">
+                        <input
+                          type="text"
+                          className={`${inputClass} bg-muted/50 font-semibold`}
+                          value={subtotal ? `Rp ${subtotal.toLocaleString('id-ID')}` : '—'}
+                          readOnly
+                        />
+                      </FormField>
                     </div>
                   )}
                 </div>
               </div>
               );
             })}
+            {formData.items.some(item => item.idbarang) && (
+              <div className="flex justify-end border-t border-border pt-3">
+                <p className="text-lg font-bold text-foreground">
+                  Total:{' '}
+                  {formData.items.reduce((sum, item) => {
+                    const b = allBarang.find(x => Number(x.idbarang) === Number(item.idbarang));
+                    return sum + (b ? (Number(b.harga) || 0) * (Number(item.jumlah) || 0) : 0);
+                  }, 0).toLocaleString('id-ID', { style: 'currency', currency: 'IDR' })}
+                </p>
+              </div>
+            )}
           </div>
 
           <div className="flex gap-3 pt-2">

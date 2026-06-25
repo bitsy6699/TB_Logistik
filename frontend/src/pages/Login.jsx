@@ -46,10 +46,10 @@ export default function Login() {
         <div className="absolute -right-24 -bottom-24 h-96 w-96 rounded-full bg-ring/20 blur-3xl" />
       </div>
 
-      <div className="relative w-full max-w-md space-y-8">
+        <div className="relative w-full max-w-md space-y-6 -translate-y-10">
         <div className="flex flex-col items-center text-center">
-          <div className="flex h-20 w-20 items-center justify-center bg-transparent animate-fade-in">
-            <img src={logoImg} alt="Logo" className="h-full w-full object-contain rounded-2xl" />
+          <div className="mx-auto flex h-40 w-40 items-center justify-center overflow-hidden rounded-2xl bg-transparent animate-fade-in">
+            <img src={logoImg} alt="Logo" className="h-full w-full object-contain" />
           </div>
 
           <h2 className="mt-6 font-display text-3xl font-semibold tracking-tight">

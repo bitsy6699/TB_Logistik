@@ -335,6 +335,10 @@ app.put('/api/kurirs/:id', async (req, res) => {
 app.delete('/api/kurirs/:id', authorize('Administrator'), async (req, res) => {
   const { id } = req.params;
   try {
+    const [orderCount] = await query('SELECT COUNT(*) AS cnt FROM `order` WHERE idkurir=?', [id]);
+    if (orderCount?.cnt > 0) {
+      return res.status(400).json({ message: `Kurir tidak bisa dihapus karena masih memiliki ${orderCount.cnt} pengiriman aktif. Hapus atau alihkan pengiriman terlebih dahulu.` });
+    }
     const rows = await query('SELECT * FROM kurir WHERE idkurir=?', [id]);
     await query('DELETE FROM kurir WHERE idkurir=?', [id]);
     logAction({ table: 'kurir', recordId: Number(id), action: 'DELETE', oldData: rows[0], req });
@@ -536,6 +540,14 @@ app.post('/api/pengiriman-terpadu', async (req, res) => {
     }
   }
 
+  const today = new Date().toISOString().split('T')[0];
+  if (tanggalpengiriman < today) {
+    return res.status(400).json({ message: 'Tanggal pengiriman tidak boleh sebelum hari ini.' });
+  }
+  if (estimasi_sampai < tanggalpengiriman) {
+    return res.status(400).json({ message: 'Estimasi sampai tidak boleh sebelum tanggal pengiriman.' });
+  }
+
   const conn = await db.getConnection();
   try {
     await conn.beginTransaction();
@@ -546,9 +558,15 @@ app.post('/api/pengiriman-terpadu', async (req, res) => {
     );
     const orderId = orderResult.insertId;
 
+    let grandTotal = 0;
     const linkedItems = [];
     for (const b of barang) {
       const qty = Number(b.jumlah) || 1;
+
+      const [barangRows] = await conn.query('SELECT harga FROM barang WHERE idbarang=?', [b.idbarang]);
+      const harga = Number(barangRows[0]?.harga) || 0;
+      const subtotal = harga * qty;
+      grandTotal += subtotal;
 
       await conn.query(
         'INSERT INTO order_barang (idpengiriman, idbarang, jumlah) VALUES (?, ?, ?)',
@@ -563,8 +581,10 @@ app.post('/api/pengiriman-terpadu', async (req, res) => {
         'INSERT INTO penyimpanan_barang (idbarang, idgudang, jumlah_masuk, waktu_masuk) VALUES (?, ?, ?, NOW())',
         [b.idbarang, idgudang, qty]
       );
-      linkedItems.push(b);
+      linkedItems.push({ ...b, harga, subtotal });
     }
+
+    await conn.query('UPDATE `order` SET total=? WHERE idpengiriman=?', [grandTotal, orderId]);
 
     const [gudangRows] = await conn.query('SELECT namagudang FROM gudang WHERE idgudang=?', [idgudang_pengirim]);
     const gudangName = gudangRows[0]?.namagudang || 'Gudang';
@@ -576,15 +596,16 @@ app.post('/api/pengiriman-terpadu', async (req, res) => {
 
     await conn.commit();
 
-    logAction({ table: 'order', recordId: orderId, action: 'CREATE', newData: { idpelanggan, idkurir, idgudang, idgudang_pengirim, nama_pengirim, no_hp_pengirim, alamat_pengirim, estimasi_sampai, tanggalpengiriman, jumlah_barang: barang.length }, req });
+    logAction({ table: 'order', recordId: orderId, action: 'CREATE', newData: { idpelanggan, idkurir, idgudang, idgudang_pengirim, nama_pengirim, no_hp_pengirim, alamat_pengirim, estimasi_sampai, tanggalpengiriman, total: grandTotal, jumlah_barang: barang.length }, req });
     for (const item of linkedItems) {
-      logAction({ table: 'order_barang', recordId: item.idbarang, action: 'CREATE', newData: { idpengiriman: orderId, idbarang: item.idbarang, jumlah: item.jumlah }, req });
+      logAction({ table: 'order_barang', recordId: item.idbarang, action: 'CREATE', newData: { idpengiriman: orderId, idbarang: item.idbarang, jumlah: item.jumlah, harga: item.harga, subtotal: item.subtotal }, req });
     }
     logAction({ table: 'trek', recordId: trekResult.insertId, action: 'CREATE', newData: { idpengiriman: orderId, lokasiterakhir: gudangName, status: 'Diproses' }, req });
 
     return res.status(201).json({
       idpengiriman: orderId,
       message: 'Pengiriman berhasil dibuat. Barang, penyimpanan, dan lacakan otomatis terbuat.',
+      total: grandTotal,
       barang: linkedItems,
       trekId: trekResult.insertId,
     });
@@ -678,18 +699,25 @@ app.get('/api/barangs/:id', async (req, res) => {
 
 app.post('/api/barangs', async (req, res) => {
   if (!validateFields(res, ['nama_barang', 'berat'], req.body)) return;
-  const { nama_barang, berat, jumlah, kategori, status } = req.body;
+  const { nama_barang, berat, jumlah, harga, kategori, status } = req.body;
+  const numBerat = Number(berat);
+  const numJumlah = Number(jumlah) || 1;
+  const numHarga = Number(harga) || 0;
+  if (numBerat <= 0) return res.status(400).json({ message: 'Berat barang harus lebih dari 0 kg.' });
+  if (numJumlah < 1) return res.status(400).json({ message: 'Jumlah barang minimal 1.' });
+  if (numHarga < 0) return res.status(400).json({ message: 'Harga tidak boleh negatif.' });
   try {
     const result = await query(
-      'INSERT INTO barang (nama_barang, jumlah, berat, kategori, status) VALUES (?, ?, ?, ?, ?)',
-      [nama_barang.trim(), jumlah || 1, berat, kategori || null, status || null]
+      'INSERT INTO barang (nama_barang, jumlah, berat, harga, kategori, status) VALUES (?, ?, ?, ?, ?, ?)',
+      [nama_barang.trim(), numJumlah, numBerat, numHarga, kategori || null, status || null]
     );
     logAction({ table: 'barang', recordId: result.insertId, action: 'CREATE', newData: req.body, req });
     return res.status(201).json({
       idbarang: result.insertId,
       nama_barang: nama_barang.trim(),
-      jumlah: Number(jumlah || 1),
-      berat: Number(berat),
+      jumlah: numJumlah,
+      berat: numBerat,
+      harga: numHarga,
       kategori: kategori || null,
       status: status || null,
     });
@@ -701,18 +729,25 @@ app.post('/api/barangs', async (req, res) => {
 app.put('/api/barangs/:id', async (req, res) => {
   if (!validateFields(res, ['nama_barang', 'berat'], req.body)) return;
   const { id } = req.params;
-  const { nama_barang, jumlah, berat, kategori, status } = req.body;
+  const { nama_barang, jumlah, berat, harga, kategori, status } = req.body;
+  const numBerat = Number(berat);
+  const numJumlah = Number(jumlah) || 1;
+  const numHarga = Number(harga) || 0;
+  if (numBerat <= 0) return res.status(400).json({ message: 'Berat barang harus lebih dari 0 kg.' });
+  if (numJumlah < 1) return res.status(400).json({ message: 'Jumlah barang minimal 1.' });
+  if (numHarga < 0) return res.status(400).json({ message: 'Harga tidak boleh negatif.' });
   try {
     await query(
-      'UPDATE barang SET nama_barang=?, jumlah=?, berat=?, kategori=?, status=? WHERE idbarang=?',
-      [nama_barang.trim(), jumlah || 1, berat, kategori, status, id]
+      'UPDATE barang SET nama_barang=?, jumlah=?, berat=?, harga=?, kategori=?, status=? WHERE idbarang=?',
+      [nama_barang.trim(), numJumlah, numBerat, numHarga, kategori, status, id]
     );
     logAction({ table: 'barang', recordId: Number(id), action: 'UPDATE', newData: req.body, req });
     return res.json({
       idbarang: Number(id),
       nama_barang: nama_barang.trim(),
-      jumlah: Number(jumlah || 1),
-      berat: Number(berat),
+      jumlah: numJumlah,
+      berat: numBerat,
+      harga: numHarga,
       kategori,
       status,
     });

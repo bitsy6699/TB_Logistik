@@ -3,7 +3,7 @@ import axios from 'axios';
 const STORAGE_KEY = 'logistikapp.session';
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://localhost:5001' : ''),
+  baseURL: import.meta.env.VITE_API_URL || '',
   timeout: 10000,
 });
 
