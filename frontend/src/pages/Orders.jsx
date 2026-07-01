@@ -424,8 +424,9 @@ export default function Orders() {
             >
               <option value="">Pilih Kurir</option>
               {couriers.map((k) => (
-                <option key={k.idkurir} value={k.idkurir}>
-                  {k.nama} ({k.kendaraan})
+                <option key={k.idkurir} value={k.idkurir}
+                  disabled={k.sedang_bertugas}>
+                  {k.nama} ({k.kendaraan}){k.sedang_bertugas ? ' — Sedang Bertugas' : ''}
                 </option>
               ))}
             </select>

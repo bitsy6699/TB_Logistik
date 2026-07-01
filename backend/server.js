@@ -265,6 +265,11 @@ app.delete('/api/customers/:id', authorize('Administrator'), async (req, res) =>
 
 app.get('/api/kurirs', async (req, res) => {
   try {
+    const aktif = await query(
+      "SELECT DISTINCT idkurir FROM `order` WHERE status NOT IN ('Terkirim', 'Dibatalkan')"
+    );
+    const aktifIds = new Set(aktif.map(r => Number(r.idkurir)));
+
     if (req.query.page || req.query.limit || req.query.search || req.query.sort) {
       const result = await paginatedQuery({
         baseQuery: 'SELECT * FROM kurir',
@@ -274,10 +279,12 @@ app.get('/api/kurirs', async (req, res) => {
         defaultSort: 'idkurir',
         req,
       });
+      result.data = result.data.map(k => ({ ...k, sedang_bertugas: aktifIds.has(Number(k.idkurir)) }));
       return res.json(result);
     }
-    const results = await query('SELECT * FROM kurir ORDER BY idkurir');
-    return res.json(results);
+    const hasil = await query('SELECT * FROM kurir ORDER BY idkurir');
+    const enriched = hasil.map(k => ({ ...k, sedang_bertugas: aktifIds.has(Number(k.idkurir)) }));
+    return res.json(enriched);
   } catch (error) {
     return sendError(res, 'Gagal memuat data kurir.', error);
   }
