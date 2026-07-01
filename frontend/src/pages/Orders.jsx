@@ -98,6 +98,15 @@ export default function Orders() {
         : '—'
     },
     {
+      key: 'barang',
+      label: 'Barang',
+      render: (row) => {
+        if (row.nama_barang) return <span className="max-w-[200px] truncate block" title={row.nama_barang}>{row.nama_barang}</span>;
+        if (row.jumlah_barang) return `${row.jumlah_barang} item`;
+        return '—';
+      }
+    },
+    {
       key: 'total',
       label: 'Total',
       sortKey: 'total',
@@ -131,7 +140,7 @@ export default function Orders() {
   useEffect(() => {
     if (!pendingStatus) return;
     const { id, status } = pendingStatus;
-    api.patch(`/api/orders/${id}/status`, { status })
+    api.patch(`/api/orders/${id}/status`, { status, lokasi: '' })
       .then(() => {
         setOrders(prev => prev.map(o => o.idpengiriman === id ? { ...o, status } : o));
         setNotice(`Status pengiriman ORD-${id} → "${status}"`);
@@ -248,6 +257,29 @@ export default function Orders() {
       return;
     }
 
+    const selectedCustomer = customers.find(c => Number(c.idpelanggan) === Number(formData.idpelanggan));
+    if (selectedCustomer && selectedCustomer.nama.trim().toLowerCase() === formData.nama_pengirim.trim().toLowerCase()) {
+      setError('Pengirim dan penerima tidak boleh orang yang sama.');
+      setSaving(false);
+      return;
+    }
+
+    if (formData.idgudang_pengirim && formData.idgudang_pengirim === formData.idgudang) {
+      setError('Gudang pengirim dan gudang tujuan tidak boleh sama.');
+      setSaving(false);
+      return;
+    }
+
+    const invalidItems = formData.items.filter(item => {
+      const b = allBarang.find(x => Number(x.idbarang) === Number(item.idbarang));
+      return b && (b.status === 'Rusak' || b.status === 'Hilang');
+    });
+    if (invalidItems.length > 0) {
+      setError('Ada barang dengan status Rusak/Hilang. Hapus atau ganti sebelum menyimpan.');
+      setSaving(false);
+      return;
+    }
+
     const validItems = formData.items.filter(item => item.idbarang);
     if (validItems.length === 0) {
       setError('Minimal 1 barang harus dipilih.');
@@ -346,14 +378,9 @@ export default function Orders() {
               className={inputClass}
               value={formData.idpelanggan}
               onChange={(event) => {
-                const val = event.target.value;
-                const customer = customers.find((c) => c.idpelanggan === Number(val));
                 setFormData((current) => ({
                   ...current,
-                  idpelanggan: val,
-                  nama_pengirim: customer ? customer.nama : current.nama_pengirim,
-                  no_hp_pengirim: customer ? customer.notelepon : current.no_hp_pengirim,
-                  alamat_pengirim: customer ? customer.alamat : current.alamat_pengirim,
+                  idpelanggan: event.target.value,
                 }));
               }}
               required
@@ -518,11 +545,15 @@ export default function Orders() {
                       required
                     >
                       <option value="">Pilih Barang</option>
-                      {allBarang.map((b) => (
-                        <option key={b.idbarang} value={b.idbarang}>
-                          {b.nama_barang} (BRG-{b.idbarang}) — stok: {b.jumlah}
-                        </option>
-                      ))}
+                      {allBarang.map((b) => {
+                        const unavailable = b.status === 'Rusak' || b.status === 'Hilang';
+                        return (
+                          <option key={b.idbarang} value={b.idbarang} disabled={unavailable}>
+                            {b.nama_barang} (BRG-{b.idbarang}) — stok: {b.jumlah}
+                            {unavailable ? ` — ${b.status}` : ''}
+                          </option>
+                        );
+                      })}
                     </select>
                   </FormField>
                   {selectedBarang && (

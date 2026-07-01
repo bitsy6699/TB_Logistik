@@ -157,7 +157,11 @@ BEGIN
     SELECT o.idpengiriman, c.nama AS nama_pelanggan, k.nama AS nama_kurir,
            g.namagudang AS nama_gudang, o.nama_pengirim, o.no_hp_pengirim,
            o.alamat_pengirim, o.estimasi_sampai, o.tanggalpengiriman,
-           o.status, o.total
+           o.status, o.total,
+           (SELECT COUNT(*) FROM order_barang ob WHERE ob.idpengiriman = o.idpengiriman) AS jumlah_barang,
+           (SELECT GROUP_CONCAT(b.nama_barang SEPARATOR ', ')
+            FROM order_barang ob JOIN barang b ON ob.idbarang = b.idbarang
+            WHERE ob.idpengiriman = o.idpengiriman) AS nama_barang
     FROM `order` o
     JOIN customer c ON o.idpelanggan = c.idpelanggan
     JOIN kurir k ON o.idkurir = k.idkurir

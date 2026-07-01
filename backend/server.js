@@ -3,6 +3,9 @@ const cors = require('cors');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const rateLimit = require('express-rate-limit');
+const fs = require('fs');
+const path = require('path');
+const { spawn } = require('child_process');
 require('dotenv').config();
 
 const db = require('./db');
@@ -443,7 +446,11 @@ app.get('/api/orders', async (req, res) => {
         baseQuery: `SELECT o.idpengiriman, c.nama AS nama_pelanggan, k.nama AS nama_kurir,
                     g.namagudang AS nama_gudang, o.nama_pengirim, o.no_hp_pengirim,
                     o.alamat_pengirim, o.estimasi_sampai, o.tanggalpengiriman,
-                    o.status, o.total
+                    o.status, o.total,
+                    (SELECT COUNT(*) FROM order_barang ob WHERE ob.idpengiriman = o.idpengiriman) AS jumlah_barang,
+                    (SELECT GROUP_CONCAT(b.nama_barang SEPARATOR ', ')
+                     FROM order_barang ob JOIN barang b ON ob.idbarang = b.idbarang
+                     WHERE ob.idpengiriman = o.idpengiriman) AS nama_barang
              FROM \`order\` o
              JOIN customer c ON o.idpelanggan = c.idpelanggan
              JOIN kurir k ON o.idkurir = k.idkurir
@@ -459,8 +466,19 @@ app.get('/api/orders', async (req, res) => {
       });
       return res.json(result);
     }
-    const results = await query('CALL OrderDetail()');
-    return res.json(Array.isArray(results) && results.length > 0 ? results[0] : []);
+    const results = await query(`SELECT o.idpengiriman, c.nama AS nama_pelanggan, k.nama AS nama_kurir,
+              g.namagudang AS nama_gudang, o.nama_pengirim, o.no_hp_pengirim,
+              o.alamat_pengirim, o.estimasi_sampai, o.tanggalpengiriman,
+              o.status, o.total,
+              (SELECT COUNT(*) FROM order_barang ob WHERE ob.idpengiriman = o.idpengiriman) AS jumlah_barang,
+              (SELECT GROUP_CONCAT(b.nama_barang SEPARATOR ', ')
+               FROM order_barang ob JOIN barang b ON ob.idbarang = b.idbarang
+               WHERE ob.idpengiriman = o.idpengiriman) AS nama_barang
+       FROM \`order\` o
+       JOIN customer c ON o.idpelanggan = c.idpelanggan
+       JOIN kurir k ON o.idkurir = k.idkurir
+       JOIN gudang g ON o.idgudang = g.idgudang`);
+    return res.json(Array.isArray(results) ? results : []);
   } catch (error) {
     return sendError(res, 'Gagal memuat data pengiriman.', error);
   }
@@ -479,7 +497,13 @@ app.get('/api/orders/:id', async (req, res) => {
        JOIN gudang g ON o.idgudang = g.idgudang
        WHERE o.idpengiriman=?`, [id]);
     if (!rows.length) return res.status(404).json({ message: 'Pengiriman tidak ditemukan.' });
-    return res.json(rows[0]);
+    const items = await query(
+      `SELECT ob.idbarang, ob.jumlah, b.nama_barang, b.harga
+       FROM order_barang ob
+       JOIN barang b ON ob.idbarang = b.idbarang
+       WHERE ob.idpengiriman = ?`, [id]
+    );
+    return res.json({ ...rows[0], items });
   } catch (error) {
     return sendError(res, 'Gagal memuat data pengiriman.', error);
   }
@@ -548,6 +572,19 @@ app.post('/api/pengiriman-terpadu', async (req, res) => {
     return res.status(400).json({ message: 'Estimasi sampai tidak boleh sebelum tanggal pengiriman.' });
   }
 
+  const [customerCheck] = await query('SELECT nama FROM customer WHERE idpelanggan=?', [idpelanggan]);
+  if (customerCheck.length) {
+    const namaPenerima = customerCheck[0].nama.trim().toLowerCase();
+    const namaPengirimTrimmed = (nama_pengirim || '').trim().toLowerCase();
+    if (namaPenerima === namaPengirimTrimmed) {
+      return res.status(400).json({ message: 'Pengirim dan penerima tidak boleh orang yang sama.' });
+    }
+  }
+
+  if (String(idgudang_pengirim) === String(idgudang)) {
+    return res.status(400).json({ message: 'Gudang pengirim dan gudang tujuan tidak boleh sama.' });
+  }
+
   const conn = await db.getConnection();
   try {
     await conn.beginTransaction();
@@ -563,8 +600,35 @@ app.post('/api/pengiriman-terpadu', async (req, res) => {
     for (const b of barang) {
       const qty = Number(b.jumlah) || 1;
 
-      const [barangRows] = await conn.query('SELECT harga FROM barang WHERE idbarang=?', [b.idbarang]);
-      const harga = Number(barangRows[0]?.harga) || 0;
+      const [barangRows] = await conn.query('SELECT nama_barang, harga, jumlah, status FROM barang WHERE idbarang=?', [b.idbarang]);
+      if (!barangRows.length) {
+        await conn.rollback();
+        conn.release();
+        return res.status(400).json({ message: `Barang ID ${b.idbarang} tidak ditemukan.` });
+      }
+
+      const brg = barangRows[0];
+      const namaBarang = brg.nama_barang || `Barang #${b.idbarang}`;
+
+      if (brg.status === 'Rusak') {
+        await conn.rollback();
+        conn.release();
+        return res.status(400).json({ message: `Barang "${namaBarang}" sedang rusak dan tidak bisa ditambahkan ke pesanan.` });
+      }
+      if (brg.status === 'Hilang') {
+        await conn.rollback();
+        conn.release();
+        return res.status(400).json({ message: `Barang "${namaBarang}" hilang dan tidak bisa ditambahkan ke pesanan.` });
+      }
+
+      const stok = Number(brg.jumlah) || 0;
+      if (stok < qty) {
+        await conn.rollback();
+        conn.release();
+        return res.status(400).json({ message: `Stok "${namaBarang}" tidak mencukupi. Tersedia: ${stok}, diminta: ${qty}.` });
+      }
+
+      const harga = Number(brg.harga) || 0;
       const subtotal = harga * qty;
       grandTotal += subtotal;
 
@@ -638,15 +702,25 @@ const BARANG_STATUSES = ['Tersedia', 'Dalam transit', 'Terkirim', 'Rusak', 'Hila
 
 app.patch('/api/orders/:id/status', async (req, res) => {
   const { id } = req.params;
-  const { status } = req.body;
+  const { status, lokasi } = req.body;
   if (!status) return res.status(400).json({ message: 'Status harus diisi.' });
   if (!ORDER_STATUSES.includes(status)) {
     return res.status(400).json({ message: `Status tidak valid. Pilihan: ${ORDER_STATUSES.join(', ')}` });
   }
   try {
     await query('UPDATE `order` SET status=? WHERE idpengiriman=?', [status, id]);
-    logAction({ table: 'order', recordId: Number(id), action: 'UPDATE', newData: { status }, req });
-    return res.json({ idpengiriman: Number(id), status, message: 'Status berhasil diperbarui.' });
+    const [rows] = await query(
+      `SELECT COALESCE(g.namagudang, 'Tidak diketahui') AS lokasi_default
+       FROM \`order\` o
+       LEFT JOIN gudang g ON o.idgudang = g.idgudang
+       WHERE o.idpengiriman=?`, [id]
+    );
+    await query(
+      'INSERT INTO trek (idpengiriman, lokasiterakhir, waktuupdate, status) VALUES (?, ?, NOW(), ?)',
+      [id, lokasi || rows[0]?.lokasi_default || 'Tidak diketahui', status]
+    );
+    logAction({ table: 'order', recordId: Number(id), action: 'UPDATE', newData: { status, lokasi: lokasi || rows[0]?.lokasi_default }, req });
+    return res.json({ idpengiriman: Number(id), status, message: 'Status berhasil diperbarui. Tracking event tercatat.' });
   } catch (error) {
     return sendError(res, 'Gagal memperbarui status.', error);
   }
@@ -788,6 +862,17 @@ app.delete('/api/barangs/:id', authorize('Administrator'), async (req, res) => {
 
 app.get('/api/treks', async (req, res) => {
   try {
+    if (req.query.idpengiriman) {
+      const rows = await query(
+        `SELECT t.*, o.idpelanggan, c.nama AS nama_pelanggan
+         FROM trek t
+         JOIN \`order\` o ON t.idpengiriman = o.idpengiriman
+         JOIN customer c ON o.idpelanggan = c.idpelanggan
+         WHERE t.idpengiriman = ?
+         ORDER BY t.waktuupdate ASC`, [req.query.idpengiriman]
+      );
+      return res.json(rows);
+    }
     if (req.query.page || req.query.limit || req.query.search || req.query.sort) {
       const result = await paginatedQuery({
         baseQuery: `SELECT t.*, o.idpelanggan, c.nama AS nama_pelanggan
@@ -827,19 +912,22 @@ app.get('/api/treks/:id', async (req, res) => {
 });
 
 app.post('/api/treks', async (req, res) => {
-  if (!validateFields(res, ['idpengiriman', 'lokasiterakhir', 'status'], req.body)) return;
+  if (!validateFields(res, ['idpengiriman', 'lokasiterakhir'], req.body)) return;
   const { idpengiriman, lokasiterakhir, status } = req.body;
   try {
+    if (status) {
+      await query('UPDATE `order` SET status=? WHERE idpengiriman=?', [status, idpengiriman]);
+    }
     const result = await query(
       'INSERT INTO trek (idpengiriman, lokasiterakhir, waktuupdate, status) VALUES (?, ?, NOW(), ?)',
-      [idpengiriman, lokasiterakhir.trim(), status.trim()]
+      [idpengiriman, lokasiterakhir.trim(), status || null]
     );
     logAction({ table: 'trek', recordId: result.insertId, action: 'CREATE', newData: req.body, req });
     return res.status(201).json({
       idtrek: result.insertId,
       idpengiriman,
       lokasiterakhir: lokasiterakhir.trim(),
-      status: status.trim(),
+      status: status || null,
     });
   } catch (error) {
     return sendError(res, 'Gagal menambahkan data trek.', error);
@@ -859,24 +947,6 @@ app.put('/api/treks/:id', async (req, res) => {
     return res.json({ idtrek: Number(id), ...req.body });
   } catch (error) {
     return sendError(res, 'Gagal memperbarui data trek.', error);
-  }
-});
-
-const TREK_STATUSES = ['Dalam perjalanan', 'Sampai tujuan', 'Terkirim', 'Diproses', 'Dibatalkan'];
-
-app.patch('/api/treks/:id/status', async (req, res) => {
-  const { id } = req.params;
-  const { status } = req.body;
-  if (!status) return res.status(400).json({ message: 'Status harus diisi.' });
-  if (!TREK_STATUSES.includes(status)) {
-    return res.status(400).json({ message: `Status tidak valid. Pilihan: ${TREK_STATUSES.join(', ')}` });
-  }
-  try {
-    await query('UPDATE trek SET status=?, waktuupdate=NOW() WHERE idtrek=?', [status, id]);
-    logAction({ table: 'trek', recordId: Number(id), action: 'UPDATE', newData: { status }, req });
-    return res.json({ idtrek: Number(id), status, message: 'Status berhasil diperbarui.' });
-  } catch (error) {
-    return sendError(res, 'Gagal memperbarui status.', error);
   }
 });
 
@@ -1053,6 +1123,166 @@ app.get('/api/audit-logs', async (req, res) => {
     return res.json(result);
   } catch (error) {
     return sendError(res, 'Gagal memuat audit log.', error);
+  }
+});
+
+// ── Backup & Restore ──
+
+const BACKUP_DIR = path.resolve(__dirname, process.env.BACKUP_DIR || './backups');
+let isBackupRunning = false;
+
+if (!fs.existsSync(BACKUP_DIR)) {
+  fs.mkdirSync(BACKUP_DIR, { recursive: true });
+}
+
+function checkMysqldump(res) {
+  try {
+    const result = spawn('mysqldump', ['--version'], { stdio: 'pipe' });
+    return new Promise((resolve) => {
+      result.on('error', () => resolve(false));
+      result.on('close', (code) => resolve(code === 0));
+    });
+  } catch { return false; }
+}
+
+function sanitizeFilename(name) {
+  const base = path.basename(name);
+  if (base !== name || !/^[\w.-]+\.sql$/.test(name)) return null;
+  return base;
+}
+
+function getBackupPath(filename) {
+  const safe = sanitizeFilename(filename);
+  if (!safe) return null;
+  return path.join(BACKUP_DIR, safe);
+}
+
+app.post('/api/backup', authorize('Administrator'), async (req, res) => {
+  if (isBackupRunning) {
+    return res.status(409).json({ message: 'Proses backup sedang berjalan. Tunggu hingga selesai.' });
+  }
+
+  const available = await checkMysqldump();
+  if (!available) {
+    return res.status(500).json({ message: 'mysqldump tidak ditemukan. Install MySQL client tools terlebih dahulu.' });
+  }
+
+  isBackupRunning = true;
+  const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+  const filename = `logistik_db_${timestamp}.sql`;
+  const filepath = path.join(BACKUP_DIR, filename);
+  const writeStream = fs.createWriteStream(filepath);
+
+  const mysqldump = spawn('mysqldump', [
+    `--host=${process.env.DB_HOST || '127.0.0.1'}`,
+    `--user=${process.env.DB_USER || 'root'}`,
+    `--password=${process.env.DB_PASSWORD || ''}`,
+    '--routines',
+    '--events',
+    '--single-transaction',
+    process.env.DB_NAME || 'logistik_db',
+  ], { stdio: ['ignore', 'pipe', 'pipe'] });
+
+  let stderr = '';
+  mysqldump.stderr.on('data', (data) => { stderr += data.toString(); });
+  mysqldump.stdout.pipe(writeStream);
+
+  mysqldump.on('close', async (code) => {
+    writeStream.end();
+    isBackupRunning = false;
+    if (code !== 0) {
+      fs.unlink(filepath, () => {});
+      return res.status(500).json({ message: 'Backup gagal.', error: stderr || `mysqldump exit code ${code}` });
+    }
+    const stats = fs.statSync(filepath);
+    logAction({ table: 'backup', recordId: null, action: 'CREATE', newData: { filename, size: stats.size }, req });
+    return res.json({ filename, size: stats.size, createdAt: new Date().toISOString(), message: 'Backup berhasil.' });
+  });
+
+  mysqldump.on('error', (err) => {
+    writeStream.end();
+    isBackupRunning = false;
+    fs.unlink(filepath, () => {});
+    return sendError(res, 'Gagal menjalankan mysqldump.', err);
+  });
+});
+
+app.get('/api/backups', authorize('Administrator'), async (req, res) => {
+  try {
+    const files = fs.readdirSync(BACKUP_DIR)
+      .filter((f) => f.endsWith('.sql'))
+      .map((f) => {
+        const stat = fs.statSync(path.join(BACKUP_DIR, f));
+        return { filename: f, size: stat.size, createdAt: stat.mtime.toISOString() };
+      })
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    return res.json(files);
+  } catch (error) {
+    return sendError(res, 'Gagal membaca daftar backup.', error);
+  }
+});
+
+app.get('/api/backups/download/:filename', authorize('Administrator'), async (req, res) => {
+  const filepath = getBackupPath(req.params.filename);
+  if (!filepath || !fs.existsSync(filepath)) {
+    return res.status(404).json({ message: 'File backup tidak ditemukan.' });
+  }
+  return res.download(filepath);
+});
+
+app.post('/api/backups/restore/:filename', authorize('Administrator'), async (req, res) => {
+  if (isBackupRunning) {
+    return res.status(409).json({ message: 'Proses backup sedang berjalan. Coba lagi nanti.' });
+  }
+
+  if (!req.body?.confirm) {
+    return res.status(400).json({ message: 'Konfirmasi diperlukan. Kirim { confirm: true } untuk melanjutkan.' });
+  }
+
+  const filepath = getBackupPath(req.params.filename);
+  if (!filepath || !fs.existsSync(filepath)) {
+    return res.status(404).json({ message: 'File backup tidak ditemukan.' });
+  }
+
+  isBackupRunning = true;
+  const mysql = spawn('mysql', [
+    `--host=${process.env.DB_HOST || '127.0.0.1'}`,
+    `--user=${process.env.DB_USER || 'root'}`,
+    `--password=${process.env.DB_PASSWORD || ''}`,
+    process.env.DB_NAME || 'logistik_db',
+  ], { stdio: ['pipe', 'ignore', 'pipe'] });
+
+  let stderr = '';
+  mysql.stderr.on('data', (data) => { stderr += data.toString(); });
+
+  fs.createReadStream(filepath).pipe(mysql.stdin);
+
+  mysql.on('close', async (code) => {
+    isBackupRunning = false;
+    if (code !== 0) {
+      return res.status(500).json({ message: 'Restore gagal.', error: stderr || `mysql exit code ${code}` });
+    }
+    logAction({ table: 'backup', recordId: null, action: 'RESTORE', newData: { filename: req.params.filename }, req });
+    return res.json({ message: 'Restore berhasil. Database telah dikembalikan.' });
+  });
+
+  mysql.on('error', (err) => {
+    isBackupRunning = false;
+    return sendError(res, 'Gagal menjalankan mysql client.', err);
+  });
+});
+
+app.delete('/api/backups/:filename', authorize('Administrator'), async (req, res) => {
+  const filepath = getBackupPath(req.params.filename);
+  if (!filepath || !fs.existsSync(filepath)) {
+    return res.status(404).json({ message: 'File backup tidak ditemukan.' });
+  }
+  try {
+    fs.unlinkSync(filepath);
+    logAction({ table: 'backup', recordId: null, action: 'DELETE', oldData: { filename: req.params.filename }, req });
+    return res.json({ message: 'File backup berhasil dihapus.' });
+  } catch (error) {
+    return sendError(res, 'Gagal menghapus file backup.', error);
   }
 });
 

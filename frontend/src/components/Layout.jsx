@@ -31,6 +31,7 @@ const navGroups = [
   {
     label: 'Sistem',
     items: [
+      { to: '/backup', label: 'Backup & Restore' },
       { to: '/audit-logs', label: 'Audit Log' },
     ],
   },

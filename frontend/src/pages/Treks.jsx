@@ -3,213 +3,86 @@ import api from '../lib/api';
 import { getErrorMessage } from '../lib/errors';
 import PageHeader from '../components/PageHeader';
 import SectionCard from '../components/SectionCard';
-import DataTable from '../components/DataTable';
 import FormField from '../components/FormField';
-import Modal from '../components/Modal';
-import { Plus } from 'lucide-react';
-import { exportToCSV } from '../lib/export';
 import StatusBadge from '../components/StatusBadge';
-import { inputClass, primaryButtonClass, secondaryButtonClass, dangerButtonClass, smallButtonClass, iconButtonClass } from '../components/ui';
+import { inputClass, primaryButtonClass, secondaryButtonClass } from '../components/ui';
+import { MapPin, Clock, Package } from 'lucide-react';
 
-const TREK_STATUSES = ['Dalam perjalanan', 'Sampai tujuan', 'Terkirim', 'Diproses', 'Dibatalkan'];
-
-const blankForm = {
-  idpengiriman: '',
-  lokasiterakhir: '',
-  status: '',
-};
+const ORDER_STATUSES = ['Diproses', 'Dalam perjalanan', 'Sampai tujuan', 'Terkirim', 'Dibatalkan'];
 
 export default function Treks() {
-  const [treks, setTreks] = useState([]);
   const [orders, setOrders] = useState([]);
-  const [formData, setFormData] = useState(blankForm);
-  const [editingId, setEditingId] = useState(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [selectedOrderId, setSelectedOrderId] = useState('');
+  const [treks, setTreks] = useState([]);
+  const [loadingTreks, setLoadingTreks] = useState(false);
+  const [loadingOrders, setLoadingOrders] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
-  const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [total, setTotal] = useState(0);
-  const [search, setSearch] = useState('');
-  const [sortColumn, setSortColumn] = useState('waktuupdate');
-  const [sortOrder, setSortOrder] = useState('desc');
-
-  const fetchTreks = useCallback(async () => {
-    setLoading(true);
-    setError('');
-
-    try {
-      const params = { page, limit: 10, sort: sortColumn, order: sortOrder };
-      if (search) params.search = search;
-      const response = await api.get('/api/treks', { params });
-      const d = response.data;
-      if (d && Array.isArray(d.data)) {
-        setTreks(d.data);
-        setTotalPages(d.totalPages);
-        setTotal(d.total);
-      } else if (Array.isArray(d)) {
-        setTreks(d);
-        setTotalPages(1);
-        setTotal(d.length);
-      }
-    } catch (fetchError) {
-      setError(getErrorMessage(fetchError, 'Gagal memuat data lacakan.'));
-    } finally {
-      setLoading(false);
-    }
-  }, [page, search, sortColumn, sortOrder]);
+  const [lokasi, setLokasi] = useState('');
+  const [status, setStatus] = useState('');
 
   const fetchOrders = useCallback(async () => {
+    setLoadingOrders(true);
     try {
       const response = await api.get('/api/orders');
-      setOrders(response.data);
-    } catch (fetchError) {
-      setError(getErrorMessage(fetchError, 'Gagal memuat data pengiriman.'));
+      const d = response.data;
+      setOrders(Array.isArray(d) ? d : (d.data || []));
+    } catch (err) {
+      setError(getErrorMessage(err, 'Gagal memuat data pengiriman.'));
+    } finally {
+      setLoadingOrders(false);
     }
   }, []);
 
+  const fetchTreks = useCallback(async () => {
+    if (!selectedOrderId) return;
+    setLoadingTreks(true);
+    setError('');
+    try {
+      const response = await api.get('/api/treks', { params: { idpengiriman: selectedOrderId } });
+      setTreks(response.data);
+    } catch (err) {
+      setError(getErrorMessage(err, 'Gagal memuat riwayat lacakan.'));
+    } finally {
+      setLoadingTreks(false);
+    }
+  }, [selectedOrderId]);
+
+  useEffect(() => {
+    fetchOrders();
+  }, [fetchOrders]);
+
   useEffect(() => {
     fetchTreks();
-    fetchOrders();
-  }, [fetchTreks, fetchOrders]);
+  }, [fetchTreks]);
 
-  const handleEdit = (row) => {
-    setEditingId(row.idtrek);
-    setFormData({ idpengiriman: row.idpengiriman, lokasiterakhir: row.lokasiterakhir, status: row.status });
-    setNotice('');
-    setError('');
-    setIsModalOpen(true);
-  };
-
-  const handleCancelEdit = () => {
-    setEditingId(null);
-    setFormData(blankForm);
-    setIsModalOpen(false);
-  };
-
-  const handleDelete = async (row) => {
-    if (!window.confirm(`Hapus lacakan untuk "${row.nama_pelanggan}"?`)) return;
-    setError('');
-    setNotice('');
-    try {
-      await api.delete(`/api/treks/${row.idtrek}`);
-      setNotice('Lacakan berhasil dihapus.');
-      if (editingId === row.idtrek) handleCancelEdit();
-      await fetchTreks();
-    } catch (err) {
-      setError(getErrorMessage(err, 'Gagal menghapus lacakan.'));
-    }
-  };
-
-  const handleSubmit = async (event) => {
-    event.preventDefault();
+  const handleAddTracking = async (e) => {
+    e.preventDefault();
+    if (!lokasi.trim()) return;
     setSaving(true);
     setError('');
     setNotice('');
-
     try {
-      if (editingId) {
-        await api.put(`/api/treks/${editingId}`, formData);
-        setNotice('Lacakan berhasil diperbarui.');
-      } else {
-        await api.post('/api/treks', formData);
-        setNotice('Lacakan berhasil disimpan.');
-      }
-      setFormData(blankForm);
-      setEditingId(null);
-      setIsModalOpen(false);
+      const payload = { idpengiriman: Number(selectedOrderId), lokasiterakhir: lokasi.trim() };
+      if (status) payload.status = status;
+      await api.post('/api/treks', payload);
+      setLokasi('');
+      setStatus('');
+      setNotice('Event tracking berhasil ditambahkan.');
       await fetchTreks();
-    } catch (submitError) {
-      setError(getErrorMessage(submitError, 'Gagal menyimpan data lacakan.'));
+    } catch (err) {
+      setError(getErrorMessage(err, 'Gagal menambahkan event tracking.'));
     } finally {
       setSaving(false);
     }
   };
 
-  const [statusLoading, setStatusLoading] = useState(null);
-
-  const handleStatusChange = async (id, newStatus) => {
-    setStatusLoading(id);
-    try {
-      await api.patch(`/api/treks/${id}/status`, { status: newStatus });
-      setTreks((prev) => prev.map((t) => (t.idtrek === id ? { ...t, status: newStatus } : t)));
-      setNotice('Status berhasil diperbarui.');
-    } catch (err) {
-      setError(getErrorMessage(err, 'Gagal memperbarui status.'));
-    } finally {
-      setStatusLoading(null);
-    }
-  };
-
-  const trekColumns = [
-    { key: 'idtrek', label: 'ID' },
-    {
-      key: 'idpengiriman', label: 'ID Pengiriman',
-      render: (row) => typeof row.idpengiriman === 'number' ? `ORD-${row.idpengiriman}` : row.idpengiriman,
-    },
-    { key: 'nama_pelanggan', label: 'Pelanggan' },
-    { key: 'lokasiterakhir', label: 'Lokasi Terakhir' },
-    {
-      key: 'waktuupdate', label: 'Waktu Update',
-      render: (row) => row.waktuupdate ? new Date(row.waktuupdate).toLocaleString('id-ID') : '—',
-    },
-    {
-      key: 'status', label: 'Status',
-      render: (row) => (
-        <div className="flex items-center gap-2">
-          <StatusBadge status={row.status} />
-          <select
-            value={row.status}
-            disabled={statusLoading === row.idtrek}
-            onChange={(e) => handleStatusChange(row.idtrek, e.target.value)}
-            className="rounded-full border border-border bg-background px-2 py-0.5 text-xs font-medium text-foreground outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/20"
-          >
-            {TREK_STATUSES.map((s) => (<option key={s} value={s}>{s}</option>))}
-          </select>
-        </div>
-      ),
-    },
-    {
-      key: '_actions',
-      label: 'Aksi',
-      render: (row) => (
-        <div className="flex gap-2">
-          <button type="button" className={smallButtonClass} onClick={() => handleEdit(row)}>Edit</button>
-          <button type="button" className={dangerButtonClass} onClick={() => handleDelete(row)}>Hapus</button>
-        </div>
-      ),
-    },
-  ];
+  const selectedOrder = orders.find((o) => String(o.idpengiriman) === String(selectedOrderId));
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Lacakan Pengiriman"
-        actions={
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={() => {
-                setEditingId(null);
-                setFormData(blankForm);
-                setIsModalOpen(true);
-              }}
-              className={iconButtonClass}
-              title="Tambah Lacakan"
-            >
-              <Plus className="h-5 w-5" />
-            </button>
-            <button type="button" onClick={() => exportToCSV(treks, trekColumns, 'lacakan.csv')} className={smallButtonClass}>
-              Export CSV
-            </button>
-            <button type="button" onClick={fetchTreks} className={secondaryButtonClass}>
-              Refresh data
-            </button>
-          </div>
-        }
-      />
+      <PageHeader title="Lacakan Pengiriman" />
 
       {notice ? (
         <div className="rounded-[24px] border border-teal-200 bg-teal-50 px-4 py-3 text-sm text-teal-700">
@@ -223,71 +96,123 @@ export default function Treks() {
         </div>
       ) : null}
 
-      <div className="w-full">
-        <SectionCard
-          title="Daftar lacakan"
-          description={`${total} lacakan tersimpan di database.`}
-        >
-          <DataTable
-            rows={treks}
-            columns={trekColumns}
-            loading={loading}
-            getRowKey={(row) => row.idtrek}
-            emptyTitle="Belum ada lacakan"
-            emptyDescription="Tambahkan lacakan pertama untuk mulai melacak pengiriman."
-            page={page}
-            totalPages={totalPages}
-            total={total}
-            onPageChange={(p) => { if (p >= 1 && p <= totalPages) setPage(p); }}
-            search={search}
-            onSearchChange={(v) => { setSearch(v); setPage(1); }}
-            sortColumn={sortColumn}
-            sortOrder={sortOrder}
-            onSort={(col, ord) => { setSortColumn(col); setSortOrder(ord); setPage(1); }}
-          />
-        </SectionCard>
-      </div>
+      <SectionCard title="Pilih Pengiriman" description="Lihat riwayat tracking berdasarkan pesanan.">
+        <div className="max-w-md">
+          <select
+            className={inputClass}
+            value={selectedOrderId}
+            onChange={(e) => { setSelectedOrderId(e.target.value); setError(''); setNotice(''); }}
+            disabled={loadingOrders}
+          >
+            <option value="">— Pilih Pesanan —</option>
+            {orders.map((o) => (
+              <option key={o.idpengiriman} value={o.idpengiriman}>
+                {typeof o.idpengiriman === 'number' ? `ORD-${o.idpengiriman}` : o.idpengiriman}
+                {' — '}{o.nama_pelanggan || '—'}
+                {o.nama_barang ? ` (${o.nama_barang})` : ''}
+              </option>
+            ))}
+          </select>
+        </div>
+      </SectionCard>
 
-      <Modal
-        isOpen={isModalOpen}
-        onClose={handleCancelEdit}
-        title={editingId ? 'Edit Lacakan' : 'Tambah Lacakan'}
-        description={editingId ? 'Ubah data lacakan lalu simpan.' : 'Catat posisi terakhir pengiriman.'}
-      >
-        <form className="space-y-4" onSubmit={handleSubmit}>
-          {!editingId && (
-            <FormField label="Kaitkan dengan Pengiriman">
-              <select className={inputClass} value={formData.idpengiriman}
-                onChange={(e) => setFormData((c) => ({...c, idpengiriman: e.target.value}))} required>
-                <option value="">Pilih Pengiriman</option>
-                {orders.map((o) => {
-                  const id = typeof o.idpengiriman === 'number' ? `ORD-${o.idpengiriman}` : o.idpengiriman;
-                  const client = o.nama_pelanggan || o.pelanggan || '—';
-                  return <option key={o.idpengiriman} value={o.idpengiriman}>{id} ({client})</option>;
-                })}
-              </select>
-            </FormField>
-          )}
-          <FormField label="Lokasi Terakhir">
-            <input type="text" className={inputClass} value={formData.lokasiterakhir}
-              onChange={(e) => setFormData((c) => ({...c, lokasiterakhir: e.target.value}))}
-              placeholder="Contoh: Jakarta - Gudang Utama" required />
-          </FormField>
-          <FormField label="Status">
-            <select className={inputClass} value={formData.status}
-              onChange={(e) => setFormData((c) => ({...c, status: e.target.value}))} required>
-              <option value="">Pilih Status</option>
-              {TREK_STATUSES.map((s) => (<option key={s} value={s}>{s}</option>))}
-            </select>
-          </FormField>
-          <div className="flex gap-3 pt-2">
-            <button type="submit" className={primaryButtonClass} disabled={saving}>
-              {saving ? 'Menyimpan...' : editingId ? 'Perbarui Lacakan' : 'Tambah Lacakan'}
-            </button>
-            <button type="button" className={secondaryButtonClass} onClick={handleCancelEdit}>Batal</button>
-          </div>
-        </form>
-      </Modal>
+      {selectedOrderId && (
+        <>
+          <SectionCard
+            title="Timeline Tracking"
+            description={selectedOrder
+              ? `ORD-${selectedOrder.idpengiriman} — ${selectedOrder.nama_pelanggan || ''} ${selectedOrder.nama_barang ? `— ${selectedOrder.nama_barang}` : ''}`
+              : ''}
+          >
+            {loadingTreks ? (
+              <div className="flex items-center justify-center py-12 text-sm text-muted-foreground">
+                Memuat riwayat...
+              </div>
+            ) : treks.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12 text-sm text-muted-foreground">
+                <Package className="mb-2 h-8 w-8 text-muted-foreground/50" />
+                <p>Belum ada event tracking untuk pesanan ini.</p>
+              </div>
+            ) : (
+              <div className="relative space-y-0">
+                {treks.map((t, idx) => (
+                  <div key={t.idtrek} className="relative flex gap-4 pb-6 last:pb-0">
+                    {/* Vertical line */}
+                    {idx < treks.length - 1 && (
+                      <div className="absolute left-[11px] top-5 h-full w-0.5 bg-border" />
+                    )}
+                    {/* Dot */}
+                    <div className="relative z-10 mt-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 border-primary bg-background">
+                      <div className="h-2 w-2 rounded-full bg-primary" />
+                    </div>
+                    {/* Content */}
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2 text-sm">
+                        <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+                        <span className="text-muted-foreground">
+                          {t.waktuupdate
+                            ? new Date(t.waktuupdate).toLocaleString('id-ID', {
+                                day: 'numeric', month: 'short', year: 'numeric',
+                                hour: '2-digit', minute: '2-digit',
+                              })
+                            : '—'}
+                        </span>
+                        {t.status && <StatusBadge status={t.status} />}
+                      </div>
+                      <div className="mt-1 flex items-center gap-1.5 text-sm font-medium text-foreground">
+                        <MapPin className="h-3.5 w-3.5 text-muted-foreground" />
+                        {t.lokasiterakhir || 'Tidak diketahui'}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </SectionCard>
+
+          <SectionCard title="Tambah Event Tracking" description="Catat posisi terbaru pengiriman.">
+            <form className="max-w-md space-y-4" onSubmit={handleAddTracking}>
+              <FormField label="Lokasi">
+                <input
+                  type="text"
+                  className={inputClass}
+                  value={lokasi}
+                  onChange={(e) => setLokasi(e.target.value)}
+                  placeholder="Contoh: Jakarta - Gudang Utama"
+                  required
+                />
+              </FormField>
+              <FormField label="Status (opsional)">
+                <select
+                  className={inputClass}
+                  value={status}
+                  onChange={(e) => setStatus(e.target.value)}
+                >
+                  <option value="">— Tidak ubah status —</option>
+                  {ORDER_STATUSES.map((s) => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
+                </select>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Jika diisi, status pesanan juga akan diperbarui.
+                </p>
+              </FormField>
+              <div className="flex gap-3">
+                <button type="submit" className={primaryButtonClass} disabled={saving || !lokasi.trim()}>
+                  {saving ? 'Menyimpan...' : 'Tambah Event'}
+                </button>
+                <button
+                  type="button"
+                  className={secondaryButtonClass}
+                  onClick={() => { setLokasi(''); setStatus(''); }}
+                >
+                  Reset
+                </button>
+              </div>
+            </form>
+          </SectionCard>
+        </>
+      )}
     </div>
   );
 }
