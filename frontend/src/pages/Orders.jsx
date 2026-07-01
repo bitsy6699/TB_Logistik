@@ -449,16 +449,31 @@ export default function Orders() {
           </FormField>
 
           <FormField label="Nama Pengirim">
-            <input
-              type="text"
+            <select
               className={inputClass}
-              value={formData.nama_pengirim}
-              onChange={(event) =>
-                setFormData((current) => ({ ...current, nama_pengirim: event.target.value }))
-              }
-              placeholder="Contoh: Budi Santoso"
+              value={customers.find(c => c.nama === formData.nama_pengirim)?.idpelanggan || ''}
+              onChange={(event) => {
+                const selected = customers.find(c => String(c.idpelanggan) === event.target.value);
+                setFormData((current) => ({
+                  ...current,
+                  nama_pengirim: selected ? selected.nama : '',
+                  no_hp_pengirim: selected ? selected.notelepon : current.no_hp_pengirim,
+                  alamat_pengirim: selected ? selected.alamat : current.alamat_pengirim,
+                }));
+              }}
               required
-            />
+            >
+              <option value="">Pilih Pengirim</option>
+              {customers.map((c) => (
+                <option
+                  key={c.idpelanggan}
+                  value={c.idpelanggan}
+                  disabled={String(c.idpelanggan) === String(formData.idpelanggan)}
+                >
+                  {c.nama} ({c.notelepon})
+                </option>
+              ))}
+            </select>
           </FormField>
 
           <FormField label="No HP Pengirim">
