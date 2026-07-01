@@ -8,8 +8,6 @@ import StatusBadge from '../components/StatusBadge';
 import { inputClass, primaryButtonClass, secondaryButtonClass } from '../components/ui';
 import { MapPin, Clock, Package } from 'lucide-react';
 
-const ORDER_STATUSES = ['Diproses', 'Dalam perjalanan', 'Sampai tujuan', 'Terkirim', 'Dibatalkan'];
-
 export default function Treks() {
   const [orders, setOrders] = useState([]);
   const [selectedOrderId, setSelectedOrderId] = useState('');
@@ -20,7 +18,6 @@ export default function Treks() {
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [lokasi, setLokasi] = useState('');
-  const [status, setStatus] = useState('');
 
   const fetchOrders = useCallback(async () => {
     setLoadingOrders(true);
@@ -64,11 +61,8 @@ export default function Treks() {
     setError('');
     setNotice('');
     try {
-      const payload = { idpengiriman: Number(selectedOrderId), lokasiterakhir: lokasi.trim() };
-      if (status) payload.status = status;
-      await api.post('/api/treks', payload);
+      await api.post('/api/treks', { idpengiriman: Number(selectedOrderId), lokasiterakhir: lokasi.trim() });
       setLokasi('');
-      setStatus('');
       setNotice('Event tracking berhasil ditambahkan.');
       await fetchTreks();
     } catch (err) {
@@ -170,8 +164,12 @@ export default function Treks() {
             )}
           </SectionCard>
 
-          <SectionCard title="Tambah Event Tracking" description="Catat posisi terbaru pengiriman.">
+          <SectionCard title="Tambah Event Tracking" description="Catat posisi terbaru pengiriman. Status hanya bisa diubah di halaman Pengiriman.">
             <form className="max-w-md space-y-4" onSubmit={handleAddTracking}>
+              <div className="mb-3 rounded-2xl border border-border bg-accent/30 p-3 text-sm">
+                <span className="text-muted-foreground">Status saat ini: </span>
+                {selectedOrder?.status ? <StatusBadge status={selectedOrder.status} /> : <span className="text-muted-foreground">—</span>}
+              </div>
               <FormField label="Lokasi">
                 <input
                   type="text"
@@ -182,21 +180,6 @@ export default function Treks() {
                   required
                 />
               </FormField>
-              <FormField label="Status (opsional)">
-                <select
-                  className={inputClass}
-                  value={status}
-                  onChange={(e) => setStatus(e.target.value)}
-                >
-                  <option value="">— Tidak ubah status —</option>
-                  {ORDER_STATUSES.map((s) => (
-                    <option key={s} value={s}>{s}</option>
-                  ))}
-                </select>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Jika diisi, status pesanan juga akan diperbarui.
-                </p>
-              </FormField>
               <div className="flex gap-3">
                 <button type="submit" className={primaryButtonClass} disabled={saving || !lokasi.trim()}>
                   {saving ? 'Menyimpan...' : 'Tambah Event'}
@@ -204,7 +187,7 @@ export default function Treks() {
                 <button
                   type="button"
                   className={secondaryButtonClass}
-                  onClick={() => { setLokasi(''); setStatus(''); }}
+                  onClick={() => setLokasi('')}
                 >
                   Reset
                 </button>

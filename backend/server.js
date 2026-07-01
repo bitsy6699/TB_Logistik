@@ -920,21 +920,17 @@ app.get('/api/treks/:id', async (req, res) => {
 
 app.post('/api/treks', async (req, res) => {
   if (!validateFields(res, ['idpengiriman', 'lokasiterakhir'], req.body)) return;
-  const { idpengiriman, lokasiterakhir, status } = req.body;
+  const { idpengiriman, lokasiterakhir } = req.body;
   try {
-    if (status) {
-      await query('UPDATE `order` SET status=? WHERE idpengiriman=?', [status, idpengiriman]);
-    }
     const result = await query(
-      'INSERT INTO trek (idpengiriman, lokasiterakhir, waktuupdate, status) VALUES (?, ?, NOW(), ?)',
-      [idpengiriman, lokasiterakhir.trim(), status || null]
+      'INSERT INTO trek (idpengiriman, lokasiterakhir, waktuupdate, status) VALUES (?, ?, NOW(), NULL)',
+      [idpengiriman, lokasiterakhir.trim()]
     );
     logAction({ table: 'trek', recordId: result.insertId, action: 'CREATE', newData: req.body, req });
     return res.status(201).json({
       idtrek: result.insertId,
       idpengiriman,
       lokasiterakhir: lokasiterakhir.trim(),
-      status: status || null,
     });
   } catch (error) {
     return sendError(res, 'Gagal menambahkan data trek.', error);
