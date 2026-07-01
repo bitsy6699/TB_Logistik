@@ -40,6 +40,7 @@ CREATE TABLE IF NOT EXISTS login (
   password VARCHAR(255) NOT NULL,
   role VARCHAR(50) DEFAULT 'Administrator',
   name VARCHAR(100) DEFAULT '',
+  idkurir INT(11) DEFAULT NULL,
   PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
@@ -112,6 +113,9 @@ ALTER TABLE penyimpanan_barang
   ADD CONSTRAINT simpan_fk_barang FOREIGN KEY (idbarang) REFERENCES barang (idbarang) ON DELETE CASCADE,
   ADD CONSTRAINT simpan_fk_gudang FOREIGN KEY (idgudang) REFERENCES gudang (idgudang) ON DELETE CASCADE;
 
+ALTER TABLE login
+  ADD CONSTRAINT login_fk_kurir FOREIGN KEY (idkurir) REFERENCES kurir (idkurir) ON DELETE SET NULL;
+
 -- -----------------------------------------------------------
 -- STORED PROCEDURES
 -- -----------------------------------------------------------
@@ -177,8 +181,10 @@ DELIMITER ;
 -- -----------------------------------------------------------
 
 -- Login (admin — password akan di-hash bcrypt saat login pertama)
-INSERT INTO login (id, email, password, role, name) VALUES
-(1, 'admin@admin.com', 'admin123', 'Administrator', 'Admin');
+INSERT INTO login (id, email, password, role, name, idkurir) VALUES
+(1, 'admin@admin.com', 'admin123', 'Administrator', 'Admin', NULL),
+(2, 'kurir1@kurir.com', 'kurir123', 'Kurir', 'Ahmad Fauzi', 1),
+(3, 'kurir2@kurir.com', 'kurir123', 'Kurir', 'Doni Prasetyo', 2);
 
 -- Customer
 INSERT INTO customer (idpelanggan, nama, alamat, notelepon) VALUES

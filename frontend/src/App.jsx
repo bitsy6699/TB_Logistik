@@ -12,6 +12,7 @@ import Treks from './pages/Treks';
 import Penyimpanans from './pages/Penyimpanans';
 import AuditLogs from './pages/AuditLogs';
 import BackupRestore from './pages/BackupRestore';
+import KurirPage from './pages/KurirPage';
 import Login from './pages/Login';
 import NotFound from './pages/NotFound';
 
@@ -33,6 +34,7 @@ function App() {
               <Route path="barangs" element={<Items />} />
               <Route path="treks" element={<Treks />} />
               <Route path="penyimpanans" element={<Penyimpanans />} />
+              <Route path="kurir" element={<KurirPage />} />
               <Route path="audit-logs" element={<AuditLogs />} />
               <Route path="backup" element={<BackupRestore />} />
               <Route path="*" element={<NotFound />} />

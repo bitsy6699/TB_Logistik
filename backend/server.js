@@ -153,7 +153,7 @@ app.post('/api/auth/login', async (req, res) => {
     }
 
     const token = jwt.sign(
-      { id: user.id, username: user.email, role: user.role || 'Administrator' },
+      { id: user.id, username: user.email, role: user.role || 'Administrator', idkurir: user.idkurir || null },
       process.env.JWT_SECRET || 'fallback_dev_secret',
       { expiresIn: '24h' }
     );
@@ -163,8 +163,9 @@ app.post('/api/auth/login', async (req, res) => {
       user: {
         id: user.id,
         username: user.email,
-        name: user.email.split('@')[0],
+        name: user.name || user.email.split('@')[0],
         role: user.role || 'Administrator',
+        idkurir: user.idkurir || null,
       },
     });
   } catch (error) {
@@ -730,6 +731,27 @@ app.patch('/api/orders/:id/status', async (req, res) => {
     return res.json({ idpengiriman: Number(id), status, message: 'Status berhasil diperbarui. Tracking event tercatat.' });
   } catch (error) {
     return sendError(res, 'Gagal memperbarui status.', error);
+  }
+});
+
+app.get('/api/kurir/orders', async (req, res) => {
+  const idkurir = req.user?.idkurir;
+  if (!idkurir) return res.status(400).json({ message: 'Akun kurir tidak valid.' });
+  try {
+    const orders = await query(`
+      SELECT o.idpengiriman, c.nama AS nama_pelanggan, o.status, o.tanggalpengiriman,
+             o.total,
+             (SELECT GROUP_CONCAT(b.nama_barang SEPARATOR ', ')
+              FROM order_barang ob JOIN barang b ON ob.idbarang = b.idbarang
+              WHERE ob.idpengiriman = o.idpengiriman) AS nama_barang
+      FROM \`order\` o
+      JOIN customer c ON o.idpelanggan = c.idpelanggan
+      WHERE o.idkurir = ?
+      ORDER BY o.tanggalpengiriman DESC
+    `, [idkurir]);
+    return res.json(orders);
+  } catch (error) {
+    return sendError(res, 'Gagal memuat pesanan kurir.', error);
   }
 });
 
