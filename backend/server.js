@@ -345,9 +345,9 @@ app.put('/api/kurirs/:id', async (req, res) => {
 app.delete('/api/kurirs/:id', authorize('Administrator'), async (req, res) => {
   const { id } = req.params;
   try {
-    const [orderCount] = await query('SELECT COUNT(*) AS cnt FROM `order` WHERE idkurir=?', [id]);
+    const [orderCount] = await query("SELECT COUNT(*) AS cnt FROM `order` WHERE idkurir=? AND status NOT IN ('Terkirim', 'Dibatalkan')", [id]);
     if (orderCount?.cnt > 0) {
-      return res.status(400).json({ message: `Kurir tidak bisa dihapus karena masih memiliki ${orderCount.cnt} pengiriman aktif. Hapus atau alihkan pengiriman terlebih dahulu.` });
+      return res.status(400).json({ message: `Kurir sedang bertugas (${orderCount.cnt} pengiriman aktif). Selesaikan pengiriman terlebih dahulu.` });
     }
     const rows = await query('SELECT * FROM kurir WHERE idkurir=?', [id]);
     await query('DELETE FROM kurir WHERE idkurir=?', [id]);

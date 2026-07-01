@@ -86,7 +86,7 @@ export default function Couriers() {
       await fetchCouriers();
     } catch (err) {
       const msg = err?.response?.data?.message || '';
-      if (msg.includes('masih memiliki')) {
+      if (msg.includes('sedang bertugas')) {
         setError(msg);
       } else {
         setError(getErrorMessage(err, 'Gagal menghapus kurir.'));
