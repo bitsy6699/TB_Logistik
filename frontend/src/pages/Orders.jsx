@@ -405,7 +405,8 @@ export default function Orders() {
             >
               <option value="">Pilih Gudang Asal</option>
               {warehouses.map((g) => (
-                <option key={g.idgudang} value={g.idgudang}>
+                <option key={g.idgudang} value={g.idgudang}
+                  disabled={String(g.idgudang) === String(formData.idgudang)}>
                   {g.namagudang} ({g.kota})
                 </option>
               ))}
@@ -441,7 +442,8 @@ export default function Orders() {
             >
               <option value="">Pilih Gudang Tujuan</option>
               {warehouses.map((g) => (
-                <option key={g.idgudang} value={g.idgudang}>
+                <option key={g.idgudang} value={g.idgudang}
+                  disabled={String(g.idgudang) === String(formData.idgudang_pengirim)}>
                   {g.namagudang} ({g.kota})
                 </option>
               ))}
