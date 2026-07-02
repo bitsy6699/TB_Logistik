@@ -12,7 +12,7 @@ const defaultForm = {
 };
 
 export default function Login() {
-  const { login, isAuthenticated } = useAuth();
+  const { login, isAuthenticated, user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [formData, setFormData] = useState(defaultForm);
@@ -21,7 +21,8 @@ export default function Login() {
   const redirectTo = location.state?.from?.pathname || '/dashboard';
 
   if (isAuthenticated) {
-    return <Navigate to={redirectTo} replace />;
+    const roleRedirect = location.state?.from?.pathname || (user?.role === 'Pelanggan' ? '/pelanggan' : user?.role === 'Kurir' ? '/courier' : user?.role === 'Pengirim' ? '/pengirim' : '/dashboard');
+    return <Navigate to={roleRedirect} replace />;
   }
 
   const handleSubmit = async (event) => {
@@ -30,8 +31,17 @@ export default function Login() {
     setError('');
 
     try {
-      await login(formData);
-      navigate(redirectTo, { replace: true });
+      const session = await login(formData);
+      const role = session?.user?.role;
+      if (role === 'Pelanggan') {
+        navigate('/pelanggan', { replace: true });
+      } else if (role === 'Kurir') {
+        navigate('/courier', { replace: true });
+      } else if (role === 'Pengirim') {
+        navigate('/pengirim', { replace: true });
+      } else {
+        navigate(redirectTo, { replace: true });
+      }
     } catch (submitError) {
       setError(submitError?.message || 'Login gagal. Silakan periksa kembali username dan password Anda.');
     } finally {

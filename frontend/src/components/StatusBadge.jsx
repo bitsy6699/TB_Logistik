@@ -1,9 +1,13 @@
 import { Badge } from '@/components/ui/badge';
 
 const statusToVariant = {
+  'Menunggu Pembayaran': 'purple',
+  'Pembayaran Diverifikasi': 'purple',
   'Diproses': 'amber',
-  'Dalam perjalanan': 'blue',
-  'Sampai tujuan': 'sky',
+  'Dikemas': 'cyan',
+  'Siap Dijemput': 'blue',
+  'Dalam Perjalanan': 'indigo',
+  'Sampai Tujuan': 'sky',
   'Terkirim': 'emerald',
   'Dibatalkan': 'rose',
   'Tersedia': 'teal',

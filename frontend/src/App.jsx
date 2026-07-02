@@ -13,6 +13,9 @@ import Penyimpanans from './pages/Penyimpanans';
 import AuditLogs from './pages/AuditLogs';
 import BackupRestore from './pages/BackupRestore';
 import KurirPage from './pages/KurirPage';
+import CustomerPage from './pages/CustomerPage';
+import CourierPortal from './pages/CourierPortal';
+import SellerPortal from './pages/SellerPortal';
 import Login from './pages/Login';
 import NotFound from './pages/NotFound';
 
@@ -39,6 +42,9 @@ function App() {
               <Route path="backup" element={<BackupRestore />} />
               <Route path="*" element={<NotFound />} />
             </Route>
+            <Route path="pelanggan" element={<CustomerPage />} />
+            <Route path="courier" element={<CourierPortal />} />
+            <Route path="pengirim" element={<SellerPortal />} />
           </Route>
 
           <Route path="*" element={<Navigate to="/dashboard" replace />} />

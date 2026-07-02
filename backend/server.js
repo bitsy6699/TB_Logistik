@@ -5,6 +5,9 @@ const jwt = require('jsonwebtoken');
 const rateLimit = require('express-rate-limit');
 const fs = require('fs');
 const path = require('path');
+const http = require('http');
+const { Server } = require('socket.io');
+const QRCode = require('qrcode');
 const { spawn } = require('child_process');
 require('dotenv').config();
 
@@ -13,9 +16,10 @@ const { authenticate, authorize } = require('./middleware/auth');
 
 const app = express();
 
+const FRONTEND_URL = process.env.FRONTEND_URL || '';
 const corsWhitelist = process.env.CORS_ORIGIN
   ? process.env.CORS_ORIGIN.split(',').map((s) => s.trim())
-  : ['http://localhost:5173', 'http://localhost:5001'];
+  : ['http://localhost:5173', 'http://localhost:5001', FRONTEND_URL].filter(Boolean);
 
 app.use(cors({
   origin: (origin, cb) => {
@@ -35,6 +39,38 @@ const loginLimiter = rateLimit({
 
 app.use('/api/auth/login', loginLimiter);
 app.use(express.json());
+
+const server = http.createServer(app);
+const io = new Server(server, {
+  cors: { origin: corsWhitelist, credentials: true },
+});
+
+io.use((socket, next) => {
+  try {
+    const token = socket.handshake.auth?.token;
+    if (token) {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback_dev_secret');
+      socket.user = decoded;
+    }
+  } catch {}
+  next();
+});
+
+io.on('connection', (socket) => {
+  if (socket.user) {
+    const rooms = [`user:${socket.user.id}`];
+    if (socket.user.role) rooms.push(`role:${socket.user.role}`);
+    if (socket.user.idkurir) rooms.push(`kurir:${socket.user.idkurir}`);
+    if (socket.user.idpelanggan) rooms.push(`pelanggan:${socket.user.idpelanggan}`);
+    if (socket.user.idpengirim) rooms.push(`pengirim:${socket.user.idpengirim}`);
+    rooms.forEach(r => socket.join(r));
+  }
+});
+
+function emitOrderUpdate(orderId, data) {
+  io.to(`order:${orderId}`).emit('order:update', data);
+  io.to('role:Administrator').emit('order:update', data);
+}
 
 async function query(sql, params = []) {
   const [rows] = await db.query(sql, params);
@@ -153,7 +189,7 @@ app.post('/api/auth/login', async (req, res) => {
     }
 
     const token = jwt.sign(
-      { id: user.id, username: user.email, role: user.role || 'Administrator', idkurir: user.idkurir || null },
+      { id: user.id, username: user.email, role: user.role || 'Administrator', idkurir: user.idkurir || null, idpelanggan: user.idpelanggan || null, idpengirim: user.idpengirim || null },
       process.env.JWT_SECRET || 'fallback_dev_secret',
       { expiresIn: '24h' }
     );
@@ -166,6 +202,8 @@ app.post('/api/auth/login', async (req, res) => {
         name: user.name || user.email.split('@')[0],
         role: user.role || 'Administrator',
         idkurir: user.idkurir || null,
+        idpelanggan: user.idpelanggan || null,
+        idpengirim: user.idpengirim || null,
       },
     });
   } catch (error) {
@@ -454,19 +492,19 @@ app.get('/api/orders', async (req, res) => {
         baseQuery: `SELECT o.idpengiriman, c.nama AS nama_pelanggan, k.nama AS nama_kurir,
                     g.namagudang AS nama_gudang, o.nama_pengirim, o.no_hp_pengirim,
                     o.alamat_pengirim, o.estimasi_sampai, o.tanggalpengiriman,
-                    o.status, o.total,
+                    o.status, o.total, o.payment_method, o.payment_status,
                     (SELECT COUNT(*) FROM order_barang ob WHERE ob.idpengiriman = o.idpengiriman) AS jumlah_barang,
                     (SELECT GROUP_CONCAT(b.nama_barang SEPARATOR ', ')
                      FROM order_barang ob JOIN barang b ON ob.idbarang = b.idbarang
                      WHERE ob.idpengiriman = o.idpengiriman) AS nama_barang
              FROM \`order\` o
              JOIN customer c ON o.idpelanggan = c.idpelanggan
-             JOIN kurir k ON o.idkurir = k.idkurir
-             JOIN gudang g ON o.idgudang = g.idgudang`,
+             LEFT JOIN kurir k ON o.idkurir = k.idkurir
+             LEFT JOIN gudang g ON o.idgudang = g.idgudang`,
         countQuery: `SELECT COUNT(*) as total FROM \`order\` o
                      JOIN customer c ON o.idpelanggan = c.idpelanggan
-                     JOIN kurir k ON o.idkurir = k.idkurir
-                     JOIN gudang g ON o.idgudang = g.idgudang`,
+                     LEFT JOIN kurir k ON o.idkurir = k.idkurir
+                     LEFT JOIN gudang g ON o.idgudang = g.idgudang`,
         searchColumns: ['o.nama_pengirim', 'o.no_hp_pengirim', 'o.status', 'c.nama', 'k.nama', 'g.namagudang'],
         sortColumns: ['idpengiriman', 'nama_pelanggan', 'nama_kurir', 'nama_gudang', 'tanggalpengiriman', 'status', 'total'],
         defaultSort: 'o.idpengiriman',
@@ -477,15 +515,15 @@ app.get('/api/orders', async (req, res) => {
     const results = await query(`SELECT o.idpengiriman, c.nama AS nama_pelanggan, k.nama AS nama_kurir,
               g.namagudang AS nama_gudang, o.nama_pengirim, o.no_hp_pengirim,
               o.alamat_pengirim, o.estimasi_sampai, o.tanggalpengiriman,
-              o.status, o.total,
+              o.status, o.total, o.payment_method, o.payment_status,
               (SELECT COUNT(*) FROM order_barang ob WHERE ob.idpengiriman = o.idpengiriman) AS jumlah_barang,
               (SELECT GROUP_CONCAT(b.nama_barang SEPARATOR ', ')
                FROM order_barang ob JOIN barang b ON ob.idbarang = b.idbarang
                WHERE ob.idpengiriman = o.idpengiriman) AS nama_barang
        FROM \`order\` o
        JOIN customer c ON o.idpelanggan = c.idpelanggan
-       JOIN kurir k ON o.idkurir = k.idkurir
-       JOIN gudang g ON o.idgudang = g.idgudang`);
+       LEFT JOIN kurir k ON o.idkurir = k.idkurir
+       LEFT JOIN gudang g ON o.idgudang = g.idgudang`);
     return res.json(Array.isArray(results) ? results : []);
   } catch (error) {
     return sendError(res, 'Gagal memuat data pengiriman.', error);
@@ -498,11 +536,11 @@ app.get('/api/orders/:id', async (req, res) => {
     const rows = await query(`SELECT o.idpengiriman, c.nama AS nama_pelanggan, k.nama AS nama_kurir,
               g.namagudang AS nama_gudang, o.nama_pengirim, o.no_hp_pengirim,
               o.alamat_pengirim, o.estimasi_sampai, o.tanggalpengiriman,
-              o.status, o.total
+              o.status, o.total, o.payment_method, o.payment_status
        FROM \`order\` o
        JOIN customer c ON o.idpelanggan = c.idpelanggan
-       JOIN kurir k ON o.idkurir = k.idkurir
-       JOIN gudang g ON o.idgudang = g.idgudang
+       LEFT JOIN kurir k ON o.idkurir = k.idkurir
+       LEFT JOIN gudang g ON o.idgudang = g.idgudang
        WHERE o.idpengiriman=?`, [id]);
     if (!rows.length) return res.status(404).json({ message: 'Pengiriman tidak ditemukan.' });
     const items = await query(
@@ -514,6 +552,61 @@ app.get('/api/orders/:id', async (req, res) => {
     return res.json({ ...rows[0], items });
   } catch (error) {
     return sendError(res, 'Gagal memuat data pengiriman.', error);
+  }
+});
+
+app.patch('/api/orders/:id/assign-courier', authorize('Administrator'), async (req, res) => {
+  const { id } = req.params;
+  const { idkurir, idgudang } = req.body;
+  if (!idkurir) return res.status(400).json({ message: 'Kurir harus dipilih.' });
+  try {
+    const [order] = await query('SELECT status FROM `order` WHERE idpengiriman=?', [id]);
+    if (!order) return res.status(404).json({ message: 'Pesanan tidak ditemukan.' });
+    if (order.status !== 'Diproses' && order.status !== 'Dikemas') {
+      return res.status(400).json({ message: 'Pesanan harus dalam status Diproses atau Dikemas untuk ditugaskan.' });
+    }
+    await query('UPDATE `order` SET idkurir=?, idgudang=COALESCE(?, idgudang) WHERE idpengiriman=?', [idkurir, idgudang || null, id]);
+    const kurirName = await query('SELECT nama FROM kurir WHERE idkurir=?', [idkurir]);
+    io.to(`kurir:${idkurir}`).emit('new-task', { idpengiriman: Number(id) });
+    emitOrderUpdate(Number(id), { idpengiriman: Number(id), idkurir: Number(idkurir) });
+    logAction({ table: 'order', recordId: Number(id), action: 'UPDATE', newData: { idkurir, idgudang: idgudang || null }, req });
+    return res.json({ idpengiriman: Number(id), idkurir: Number(idkurir), message: `Kurir ${kurirName[0]?.nama || ''} ditugaskan.` });
+  } catch (error) {
+    return sendError(res, 'Gagal menugaskan kurir.', error);
+  }
+});
+
+app.patch('/api/orders/:id/scan-pickup', async (req, res) => {
+  const idkurir = req.user?.idkurir;
+  if (!idkurir) return res.status(400).json({ message: 'Akun kurir tidak valid.' });
+  const { id } = req.params;
+  try {
+    const [order] = await query('SELECT status, idkurir FROM `order` WHERE idpengiriman=?', [id]);
+    if (!order) return res.status(404).json({ message: 'Pesanan tidak ditemukan.' });
+    if (Number(order.idkurir) !== Number(idkurir)) {
+      return res.status(403).json({ message: 'Pesanan ini tidak ditugaskan kepada Anda.' });
+    }
+    if (order.status !== 'Siap Dijemput') {
+      return res.status(400).json({ message: 'Pesanan harus dalam status Siap Dijemput untuk diambil.' });
+    }
+    await query("UPDATE `order` SET status='Dalam Perjalanan' WHERE idpengiriman=?", [id]);
+    await query("INSERT INTO trek (idpengiriman, lokasiterakhir, waktuupdate, status) VALUES (?, 'Barang dijemput kurir', NOW(), 'Dalam Perjalanan')", [id]);
+    emitOrderUpdate(Number(id), { idpengiriman: Number(id), status: 'Dalam Perjalanan' });
+    return res.json({ idpengiriman: Number(id), status: 'Dalam Perjalanan', message: 'Barang dijemput. Status: Dalam Perjalanan.' });
+  } catch (error) {
+    return sendError(res, 'Gagal scan pickup.', error);
+  }
+});
+
+app.get('/api/orders/:id/qrcode', async (req, res) => {
+  const { id } = req.params;
+  try {
+    const [order] = await query('SELECT idpengiriman FROM `order` WHERE idpengiriman=?', [id]);
+    if (!order) return res.status(404).json({ message: 'Pesanan tidak ditemukan.' });
+    const qrDataUrl = await QRCode.toDataURL(`logistik:order:${id}`, { errorCorrectionLevel: 'H' });
+    return res.json({ idpengiriman: Number(id), qrCode: qrDataUrl });
+  } catch (error) {
+    return sendError(res, 'Gagal generate QR code.', error);
   }
 });
 
@@ -529,16 +622,28 @@ app.post('/api/orders', async (req, res) => {
     'tanggalpengiriman',
   ], req.body)) return;
 
-  const { idpelanggan, idkurir, idgudang, nama_pengirim, no_hp_pengirim, alamat_pengirim, estimasi_sampai, tanggalpengiriman } = req.body;
+  const { idpelanggan, idkurir, idgudang, nama_pengirim, no_hp_pengirim, alamat_pengirim, estimasi_sampai, tanggalpengiriman, barang } = req.body;
 
   try {
     const result = await query(
       'INSERT INTO `order` (idpelanggan, idkurir, idgudang, nama_pengirim, no_hp_pengirim, alamat_pengirim, estimasi_sampai, tanggalpengiriman, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
       [idpelanggan, idkurir, idgudang, nama_pengirim.trim(), no_hp_pengirim.trim(), alamat_pengirim.trim(), estimasi_sampai, tanggalpengiriman, 'Diproses']
     );
-    logAction({ table: 'order', recordId: result.insertId, action: 'CREATE', newData: req.body, req });
+    const orderId = result.insertId;
+    if (Array.isArray(barang) && barang.length > 0) {
+      for (const b of barang) {
+        const qty = Number(b.jumlah) || 1;
+        await query('INSERT INTO order_barang (idpengiriman, idbarang, jumlah) VALUES (?, ?, ?)', [orderId, b.idbarang, qty]);
+        await query('UPDATE barang SET jumlah = jumlah - ? WHERE idbarang = ?', [qty, b.idbarang]);
+      }
+    }
+
+    await query("INSERT INTO trek (idpengiriman, lokasiterakhir, waktuupdate, status) VALUES (?, 'Dibuat oleh admin', NOW(), 'Diproses')", [orderId]);
+
+    logAction({ table: 'order', recordId: orderId, action: 'CREATE', newData: req.body, req });
+    emitOrderUpdate(orderId, { idpengiriman: orderId, status: 'Diproses' });
     return res.status(201).json({
-      idpengiriman: result.insertId,
+      idpengiriman: orderId,
       idpelanggan,
       idkurir,
       idgudang,
@@ -644,6 +749,7 @@ app.post('/api/pengiriman-terpadu', async (req, res) => {
         'INSERT INTO order_barang (idpengiriman, idbarang, jumlah) VALUES (?, ?, ?)',
         [orderId, b.idbarang, qty]
       );
+      await conn.query('UPDATE barang SET jumlah = jumlah - ? WHERE idbarang = ?', [qty, b.idbarang]);
 
       await conn.query(
         'INSERT INTO penyimpanan_barang (idbarang, idgudang, jumlah_keluar, waktu_keluar, waktu_masuk) VALUES (?, ?, ?, NOW(), NOW())',
@@ -705,7 +811,20 @@ app.put('/api/orders/:id', async (req, res) => {
   }
 });
 
-const ORDER_STATUSES = ['Diproses', 'Dalam perjalanan', 'Sampai tujuan', 'Terkirim', 'Dibatalkan'];
+const ORDER_STATUSES = ['Menunggu Pembayaran', 'Pembayaran Diverifikasi', 'Diproses', 'Dikemas', 'Siap Dijemput', 'Dalam Perjalanan', 'Sampai Tujuan', 'Terkirim', 'Dibatalkan'];
+
+const ORDER_TRANSITIONS = {
+  'Menunggu Pembayaran': ['Pembayaran Diverifikasi', 'Dibatalkan'],
+  'Pembayaran Diverifikasi': ['Diproses', 'Dibatalkan'],
+  'Diproses': ['Dikemas', 'Dibatalkan'],
+  'Dikemas': ['Siap Dijemput'],
+  'Siap Dijemput': ['Dalam Perjalanan'],
+  'Dalam Perjalanan': ['Sampai Tujuan'],
+  'Sampai Tujuan': ['Terkirim'],
+};
+
+const CANCELLABLE_STATUSES = ['Menunggu Pembayaran', 'Pembayaran Diverifikasi', 'Diproses'];
+
 const BARANG_STATUSES = ['Tersedia', 'Dalam transit', 'Terkirim', 'Rusak', 'Hilang'];
 
 app.patch('/api/orders/:id/status', async (req, res) => {
@@ -716,7 +835,20 @@ app.patch('/api/orders/:id/status', async (req, res) => {
     return res.status(400).json({ message: `Status tidak valid. Pilihan: ${ORDER_STATUSES.join(', ')}` });
   }
   try {
-    await query('UPDATE `order` SET status=? WHERE idpengiriman=?', [status, id]);
+    const [order] = await query('SELECT status, payment_method, payment_status FROM `order` WHERE idpengiriman=?', [id]);
+    if (!order) return res.status(404).json({ message: 'Pesanan tidak ditemukan.' });
+    if (order.status === 'Dibatalkan') {
+      return res.status(400).json({ message: 'Pesanan sudah dibatalkan. Tidak bisa update status.' });
+    }
+    const allowed = ORDER_TRANSITIONS[order.status];
+    if (!allowed || !allowed.includes(status)) {
+      return res.status(400).json({ message: `Transisi tidak valid: ${order.status} → ${status}.` });
+    }
+    if (status === 'Terkirim' && order.payment_method === 'cod') {
+      await query("UPDATE `order` SET status=?, payment_status='paid' WHERE idpengiriman=?", [status, id]);
+    } else {
+      await query('UPDATE `order` SET status=? WHERE idpengiriman=?', [status, id]);
+    }
     const [rows] = await query(
       `SELECT COALESCE(g.namagudang, 'Tidak diketahui') AS lokasi_default
        FROM \`order\` o
@@ -728,6 +860,7 @@ app.patch('/api/orders/:id/status', async (req, res) => {
       [id, lokasi || rows[0]?.lokasi_default || 'Tidak diketahui', status]
     );
     logAction({ table: 'order', recordId: Number(id), action: 'UPDATE', newData: { status, lokasi: lokasi || rows[0]?.lokasi_default }, req });
+    emitOrderUpdate(Number(id), { idpengiriman: Number(id), status, payment_status: status === 'Terkirim' && order.payment_method === 'cod' ? 'paid' : undefined });
     return res.json({ idpengiriman: Number(id), status, message: 'Status berhasil diperbarui. Tracking event tercatat.' });
   } catch (error) {
     return sendError(res, 'Gagal memperbarui status.', error);
@@ -740,7 +873,7 @@ app.get('/api/kurir/orders', async (req, res) => {
   try {
     const orders = await query(`
       SELECT o.idpengiriman, c.nama AS nama_pelanggan, o.status, o.tanggalpengiriman,
-             o.total,
+             o.total, o.payment_method, o.payment_status,
              (SELECT GROUP_CONCAT(b.nama_barang SEPARATOR ', ')
               FROM order_barang ob JOIN barang b ON ob.idbarang = b.idbarang
               WHERE ob.idpengiriman = o.idpengiriman) AS nama_barang
@@ -752,6 +885,352 @@ app.get('/api/kurir/orders', async (req, res) => {
     return res.json(orders);
   } catch (error) {
     return sendError(res, 'Gagal memuat pesanan kurir.', error);
+  }
+});
+
+// ── Pelanggan ──
+
+app.get('/api/pelanggan/barang', async (req, res) => {
+  try {
+    const rows = await query("SELECT idbarang, nama_barang, harga, jumlah AS stok, kategori, idpengirim FROM barang WHERE status NOT IN ('Rusak', 'Hilang') ORDER BY nama_barang");
+    return res.json(rows);
+  } catch (error) {
+    return sendError(res, 'Gagal memuat katalog barang.', error);
+  }
+});
+
+app.get('/api/pelanggan/orders', async (req, res) => {
+  const idpelanggan = req.user?.idpelanggan;
+  if (!idpelanggan) return res.status(400).json({ message: 'Akun pelanggan tidak valid.' });
+  try {
+    const orders = await query(`
+      SELECT o.idpengiriman, o.status, o.total, o.tanggalpengiriman, o.payment_method, o.payment_status,
+             (SELECT GROUP_CONCAT(CONCAT(b.nama_barang, ' x', ob.jumlah) SEPARATOR ', ')
+              FROM order_barang ob JOIN barang b ON ob.idbarang = b.idbarang
+              WHERE ob.idpengiriman = o.idpengiriman) AS items
+      FROM \`order\` o
+      WHERE o.idpelanggan = ?
+      ORDER BY o.tanggalpengiriman DESC
+    `, [idpelanggan]);
+    return res.json(orders);
+  } catch (error) {
+    return sendError(res, 'Gagal memuat pesanan.', error);
+  }
+});
+
+app.get('/api/pelanggan/orders/:id', async (req, res) => {
+  const idpelanggan = req.user?.idpelanggan;
+  if (!idpelanggan) return res.status(400).json({ message: 'Akun pelanggan tidak valid.' });
+  const { id } = req.params;
+  try {
+    const [order] = await query(
+      'SELECT o.*, c.nama AS nama_pelanggan FROM `order` o JOIN customer c ON o.idpelanggan = c.idpelanggan WHERE o.idpengiriman=? AND o.idpelanggan=?',
+      [id, idpelanggan]
+    );
+    if (!order) return res.status(404).json({ message: 'Pesanan tidak ditemukan.' });
+    const items = await query(
+      'SELECT ob.*, b.nama_barang, b.harga FROM order_barang ob JOIN barang b ON ob.idbarang = b.idbarang WHERE ob.idpengiriman=?',
+      [id]
+    );
+    const treks = await query(
+      'SELECT * FROM trek WHERE idpengiriman=? ORDER BY waktuupdate ASC',
+      [id]
+    );
+    return res.json({ ...order, items, treks });
+  } catch (error) {
+    return sendError(res, 'Gagal memuat detail pesanan.', error);
+  }
+});
+
+app.post('/api/pelanggan/orders', async (req, res) => {
+  const idpelanggan = req.user?.idpelanggan;
+  if (!idpelanggan) return res.status(400).json({ message: 'Akun pelanggan tidak valid.' });
+
+  const { barang, payment_method } = req.body;
+  if (!Array.isArray(barang) || barang.length === 0) {
+    return res.status(400).json({ message: 'Minimal 1 barang harus dipilih.' });
+  }
+  if (!payment_method || !['qris', 'transfer', 'e_wallet', 'cod'].includes(payment_method)) {
+    return res.status(400).json({ message: 'Metode pembayaran harus diisi (qris/transfer/e_wallet/cod).' });
+  }
+  for (const b of barang) {
+    if (!b.idbarang || !b.jumlah || b.jumlah < 1) {
+      return res.status(400).json({ message: 'Data barang tidak valid.' });
+    }
+  }
+
+  const conn = await db.getConnection();
+  try {
+    await conn.beginTransaction();
+
+    const [customerRows] = await conn.query('SELECT nama, alamat, notelepon FROM customer WHERE idpelanggan=?', [idpelanggan]);
+    if (!customerRows.length) {
+      await conn.rollback();
+      return res.status(404).json({ message: 'Data pelanggan tidak ditemukan.' });
+    }
+    const customer = customerRows[0];
+
+    const [orderResult] = await conn.query(
+      "INSERT INTO `order` (idpelanggan, nama_pengirim, no_hp_pengirim, alamat_pengirim, tanggalpengiriman, estimasi_sampai, status, payment_method, payment_status) VALUES (?, ?, ?, ?, CURDATE(), DATE_ADD(CURDATE(), INTERVAL 3 DAY), 'Menunggu Pembayaran', ?, 'pending')",
+      [idpelanggan, customer.nama, customer.notelepon, customer.alamat, payment_method]
+    );
+    const orderId = orderResult.insertId;
+
+    let grandTotal = 0;
+    for (const b of barang) {
+      const qty = Number(b.jumlah) || 1;
+      const [barangRows] = await conn.query('SELECT nama_barang, harga, jumlah, status, idpengirim FROM barang WHERE idbarang=?', [b.idbarang]);
+      if (!barangRows.length) {
+        await conn.rollback();
+        return res.status(400).json({ message: `Barang ID ${b.idbarang} tidak ditemukan.` });
+      }
+      const brg = barangRows[0];
+      if (brg.status === 'Rusak' || brg.status === 'Hilang') {
+        await conn.rollback();
+        return res.status(400).json({ message: `Barang "${brg.nama_barang}" tidak tersedia.` });
+      }
+      const stok = Number(brg.jumlah) || 0;
+      if (stok < qty) {
+        await conn.rollback();
+        return res.status(400).json({ message: `Stok "${brg.nama_barang}" tidak mencukupi. Tersedia: ${stok}.` });
+      }
+      const harga = Number(brg.harga) || 0;
+      grandTotal += harga * qty;
+      await conn.query('INSERT INTO order_barang (idpengiriman, idbarang, jumlah) VALUES (?, ?, ?)', [orderId, b.idbarang, qty]);
+      await conn.query('UPDATE barang SET jumlah = jumlah - ? WHERE idbarang = ?', [qty, b.idbarang]);
+    }
+
+    await conn.query('UPDATE `order` SET total=? WHERE idpengiriman=?', [grandTotal, orderId]);
+    await conn.query(
+      "INSERT INTO trek (idpengiriman, lokasiterakhir, waktuupdate, status) VALUES (?, 'Diterima sistem', NOW(), 'Menunggu Pembayaran')",
+      [orderId]
+    );
+
+    await conn.commit();
+
+    logAction({ table: 'order', recordId: orderId, action: 'CREATE', newData: { idpelanggan, total: grandTotal, payment_method, status: 'Menunggu Pembayaran' }, req });
+
+    const [barangSellers] = await conn.query(
+      'SELECT DISTINCT b.idpengirim FROM order_barang ob JOIN barang b ON ob.idbarang = b.idbarang WHERE ob.idpengiriman = ? AND b.idpengirim IS NOT NULL',
+      [orderId]
+    );
+    barangSellers.forEach(s => {
+      if (s.idpengirim) io.to(`pengirim:${s.idpengirim}`).emit('new-order:pengirim', { idpengiriman: orderId });
+    });
+    emitOrderUpdate(orderId, { idpengiriman: orderId, status: 'Menunggu Pembayaran' });
+
+    return res.status(201).json({ idpengiriman: orderId, total: grandTotal, payment_method, message: 'Pesanan berhasil dibuat.' });
+  } catch (error) {
+    await conn.rollback();
+    return sendError(res, 'Gagal membuat pesanan.', error);
+  } finally {
+    conn.release();
+  }
+});
+
+app.patch('/api/pelanggan/orders/:id/pay', async (req, res) => {
+  const idpelanggan = req.user?.idpelanggan;
+  if (!idpelanggan) return res.status(400).json({ message: 'Akun pelanggan tidak valid.' });
+  const { id } = req.params;
+  try {
+    const [order] = await query('SELECT * FROM `order` WHERE idpengiriman=? AND idpelanggan=?', [id, idpelanggan]);
+    if (!order) return res.status(404).json({ message: 'Pesanan tidak ditemukan.' });
+    if (order.status !== 'Menunggu Pembayaran') {
+      return res.status(400).json({ message: 'Pesanan sudah dibayar atau tidak dalam status menunggu pembayaran.' });
+    }
+    await query("UPDATE `order` SET payment_status='paid', status='Pembayaran Diverifikasi' WHERE idpengiriman=?", [id]);
+    await query("INSERT INTO trek (idpengiriman, lokasiterakhir, waktuupdate, status) VALUES (?, 'Pembayaran diverifikasi', NOW(), 'Pembayaran Diverifikasi')", [id]);
+    logAction({ table: 'order', recordId: Number(id), action: 'UPDATE', newData: { payment_status: 'paid', status: 'Pembayaran Diverifikasi' }, req });
+    emitOrderUpdate(Number(id), { idpengiriman: Number(id), status: 'Pembayaran Diverifikasi', payment_status: 'paid' });
+    return res.json({ idpengiriman: Number(id), status: 'Pembayaran Diverifikasi', payment_status: 'paid', message: 'Pembayaran berhasil (demo).' });
+  } catch (error) {
+    return sendError(res, 'Gagal memproses pembayaran.', error);
+  }
+});
+
+app.patch('/api/pelanggan/orders/:id/cancel', async (req, res) => {
+  const idpelanggan = req.user?.idpelanggan;
+  if (!idpelanggan) return res.status(400).json({ message: 'Akun pelanggan tidak valid.' });
+  const { id } = req.params;
+  try {
+    const [order] = await query('SELECT * FROM `order` WHERE idpengiriman=? AND idpelanggan=?', [id, idpelanggan]);
+    if (!order) return res.status(404).json({ message: 'Pesanan tidak ditemukan.' });
+    if (!CANCELLABLE_STATUSES.includes(order.status)) {
+      return res.status(400).json({ message: `Pesanan hanya bisa dibatalkan saat status: ${CANCELLABLE_STATUSES.join(', ')}.` });
+    }
+    await query("UPDATE `order` SET status='Dibatalkan' WHERE idpengiriman=?", [id]);
+    const items = await query('SELECT idbarang, jumlah FROM order_barang WHERE idpengiriman=?', [id]);
+    for (const item of items) {
+      await query('UPDATE barang SET jumlah = jumlah + ? WHERE idbarang = ?', [item.jumlah, item.idbarang]);
+    }
+    await query("INSERT INTO trek (idpengiriman, lokasiterakhir, waktuupdate, status) VALUES (?, 'Dibatalkan oleh pelanggan', NOW(), 'Dibatalkan')", [id]);
+    logAction({ table: 'order', recordId: Number(id), action: 'UPDATE', newData: { status: 'Dibatalkan' }, req });
+    emitOrderUpdate(Number(id), { idpengiriman: Number(id), status: 'Dibatalkan' });
+    return res.json({ idpengiriman: Number(id), status: 'Dibatalkan', message: 'Pesanan dibatalkan. Stok dikembalikan.' });
+  } catch (error) {
+    return sendError(res, 'Gagal membatalkan pesanan.', error);
+  }
+});
+
+// ── Pengirim ──
+
+app.post('/api/pengirim/barang', async (req, res) => {
+  const idpengirim = req.user?.idpengirim;
+  if (!idpengirim) return res.status(400).json({ message: 'Akun pengirim tidak valid.' });
+  if (!validateFields(res, ['nama_barang', 'harga', 'jumlah'], req.body)) return;
+  const { nama_barang, harga, jumlah, kategori } = req.body;
+  try {
+    if (Number(harga) < 0) return res.status(400).json({ message: 'Harga tidak boleh negatif.' });
+    if (Number(jumlah) < 0) return res.status(400).json({ message: 'Jumlah tidak boleh negatif.' });
+    const result = await query(
+      'INSERT INTO barang (nama_barang, harga, jumlah, kategori, status, idpengirim) VALUES (?, ?, ?, ?, ?, ?)',
+      [nama_barang.trim(), Number(harga), Number(jumlah), kategori || 'Umum', 'Tersedia', idpengirim]
+    );
+    logAction({ table: 'barang', recordId: result.insertId, action: 'CREATE', newData: { ...req.body, idpengirim }, req });
+    return res.status(201).json({ idbarang: result.insertId, nama_barang: nama_barang.trim(), message: 'Barang berhasil ditambahkan.' });
+  } catch (error) {
+    return sendError(res, 'Gagal menambah barang.', error);
+  }
+});
+
+app.put('/api/pengirim/barang/:id', async (req, res) => {
+  const idpengirim = req.user?.idpengirim;
+  if (!idpengirim) return res.status(400).json({ message: 'Akun pengirim tidak valid.' });
+  if (!validateFields(res, ['nama_barang', 'harga', 'jumlah'], req.body)) return;
+  const { id } = req.params;
+  const { nama_barang, harga, jumlah, kategori } = req.body;
+  try {
+    const [existing] = await query('SELECT * FROM barang WHERE idbarang=? AND idpengirim=?', [id, idpengirim]);
+    if (!existing) return res.status(404).json({ message: 'Barang tidak ditemukan.' });
+    await query(
+      'UPDATE barang SET nama_barang=?, harga=?, jumlah=?, kategori=? WHERE idbarang=? AND idpengirim=?',
+      [nama_barang.trim(), Number(harga), Number(jumlah), kategori || 'Umum', id, idpengirim]
+    );
+    logAction({ table: 'barang', recordId: Number(id), action: 'UPDATE', newData: req.body, req });
+    return res.json({ idbarang: Number(id), nama_barang: nama_barang.trim(), message: 'Barang berhasil diperbarui.' });
+  } catch (error) {
+    return sendError(res, 'Gagal memperbarui barang.', error);
+  }
+});
+
+app.delete('/api/pengirim/barang/:id', async (req, res) => {
+  const idpengirim = req.user?.idpengirim;
+  if (!idpengirim) return res.status(400).json({ message: 'Akun pengirim tidak valid.' });
+  const { id } = req.params;
+  try {
+    const [existing] = await query('SELECT * FROM barang WHERE idbarang=? AND idpengirim=?', [id, idpengirim]);
+    if (!existing) return res.status(404).json({ message: 'Barang tidak ditemukan.' });
+    const inUse = await query('SELECT COUNT(*) AS cnt FROM order_barang ob JOIN `order` o ON ob.idpengiriman=o.idpengiriman WHERE ob.idbarang=? AND o.status NOT IN (\'Dibatalkan\',\'Terkirim\')', [id]);
+    if (inUse[0]?.cnt > 0) {
+      return res.status(400).json({ message: 'Barang sedang digunakan di pesanan aktif. Tidak bisa dihapus.' });
+    }
+    await query('DELETE FROM barang WHERE idbarang=? AND idpengirim=?', [id, idpengirim]);
+    logAction({ table: 'barang', recordId: Number(id), action: 'DELETE', oldData: existing, req });
+    return res.json({ message: 'Barang berhasil dihapus.' });
+  } catch (error) {
+    return sendError(res, 'Gagal menghapus barang.', error);
+  }
+});
+
+app.patch('/api/pengirim/orders/:id/confirm', async (req, res) => {
+  const idpengirim = req.user?.idpengirim;
+  if (!idpengirim) return res.status(400).json({ message: 'Akun pengirim tidak valid.' });
+  const { id } = req.params;
+  try {
+    const [order] = await query('SELECT status FROM `order` WHERE idpengiriman=?', [id]);
+    if (!order) return res.status(404).json({ message: 'Pesanan tidak ditemukan.' });
+    if (order.status !== 'Pembayaran Diverifikasi') {
+      return res.status(400).json({ message: 'Pesanan harus dalam status Pembayaran Diverifikasi untuk dikonfirmasi.' });
+    }
+    const items = await query(
+      'SELECT ob.idbarang FROM order_barang ob JOIN barang b ON ob.idbarang=b.idbarang WHERE ob.idpengiriman=? AND b.idpengirim=? AND ob.seller_confirmed=0',
+      [id, idpengirim]
+    );
+    if (items.length === 0) return res.status(400).json({ message: 'Semua barang Anda sudah dikonfirmasi.' });
+    await query(
+      'UPDATE order_barang ob JOIN barang b ON ob.idbarang=b.idbarang SET ob.seller_confirmed=1, ob.confirmed_at=NOW() WHERE ob.idpengiriman=? AND b.idpengirim=?',
+      [id, idpengirim]
+    );
+    const allConfirmed = await query(`
+      SELECT COUNT(*) AS pending FROM order_barang ob
+      JOIN barang b ON ob.idbarang=b.idbarang
+      WHERE ob.idpengiriman=? AND ob.seller_confirmed=0
+    `, [id]);
+    if (allConfirmed[0]?.pending === 0) {
+      await query("UPDATE `order` SET status='Diproses' WHERE idpengiriman=?", [id]);
+      await query("INSERT INTO trek (idpengiriman, lokasiterakhir, waktuupdate, status) VALUES (?, 'Semua seller telah konfirmasi', NOW(), 'Diproses')", [id]);
+    }
+    emitOrderUpdate(Number(id), { idpengiriman: Number(id), status: allConfirmed[0]?.pending === 0 ? 'Diproses' : 'Pembayaran Diverifikasi' });
+    return res.json({ message: 'Barang dikonfirmasi.', all_confirmed: allConfirmed[0]?.pending === 0 });
+  } catch (error) {
+    return sendError(res, 'Gagal konfirmasi pesanan.', error);
+  }
+});
+
+app.get('/api/pengirim/barang', async (req, res) => {
+  const idpengirim = req.user?.idpengirim;
+  if (!idpengirim) return res.status(400).json({ message: 'Akun pengirim tidak valid.' });
+  try {
+    const rows = await query(
+      "SELECT idbarang, nama_barang, harga, jumlah AS stok, kategori, status FROM barang WHERE idpengirim=? ORDER BY nama_barang",
+      [idpengirim]
+    );
+    return res.json(rows);
+  } catch (error) {
+    return sendError(res, 'Gagal memuat barang.', error);
+  }
+});
+
+app.get('/api/pengirim/orders', async (req, res) => {
+  const idpengirim = req.user?.idpengirim;
+  if (!idpengirim) return res.status(400).json({ message: 'Akun pengirim tidak valid.' });
+  try {
+    const orders = await query(`
+      SELECT DISTINCT o.idpengiriman, o.status, o.total, o.tanggalpengiriman, o.payment_method, o.payment_status,
+             c.nama AS nama_pelanggan,
+             (SELECT GROUP_CONCAT(CONCAT(b.nama_barang, ' x', ob.jumlah) SEPARATOR ', ')
+              FROM order_barang ob JOIN barang b ON ob.idbarang = b.idbarang
+              WHERE ob.idpengiriman = o.idpengiriman AND b.idpengirim = ?) AS items,
+             (SELECT COUNT(*) FROM order_barang ob2 JOIN barang b2 ON ob2.idbarang = b2.idbarang
+              WHERE ob2.idpengiriman = o.idpengiriman AND b2.idpengirim = ? AND ob2.seller_confirmed = 1) AS items_confirmed
+      FROM \`order\` o
+      JOIN order_barang ob ON o.idpengiriman = ob.idpengiriman
+      JOIN barang b ON ob.idbarang = b.idbarang
+      JOIN customer c ON o.idpelanggan = c.idpelanggan
+      WHERE b.idpengirim = ?
+      ORDER BY o.tanggalpengiriman DESC
+    `, [idpengirim, idpengirim, idpengirim]);
+    return res.json(orders);
+  } catch (error) {
+    return sendError(res, 'Gagal memuat pesanan.', error);
+  }
+});
+
+app.get('/api/pengirim/orders/:id', async (req, res) => {
+  const idpengirim = req.user?.idpengirim;
+  if (!idpengirim) return res.status(400).json({ message: 'Akun pengirim tidak valid.' });
+  const { id } = req.params;
+  try {
+    const [order] = await query(`
+      SELECT DISTINCT o.*, c.nama AS nama_pelanggan
+      FROM \`order\` o
+      JOIN order_barang ob ON o.idpengiriman = ob.idpengiriman
+      JOIN barang b ON ob.idbarang = b.idbarang
+      JOIN customer c ON o.idpelanggan = c.idpelanggan
+      WHERE o.idpengiriman=? AND b.idpengirim=?
+    `, [id, idpengirim]);
+    if (!order) return res.status(404).json({ message: 'Pesanan tidak ditemukan.' });
+    const items = await query(
+      'SELECT ob.*, b.nama_barang, b.harga, b.idpengirim FROM order_barang ob JOIN barang b ON ob.idbarang = b.idbarang WHERE ob.idpengiriman=? AND b.idpengirim=?',
+      [id, idpengirim]
+    );
+    const treks = await query(
+      'SELECT * FROM trek WHERE idpengiriman=? ORDER BY waktuupdate ASC',
+      [id]
+    );
+    return res.json({ ...order, items, treks });
+  } catch (error) {
+    return sendError(res, 'Gagal memuat detail pesanan.', error);
   }
 });
 
@@ -1314,9 +1793,9 @@ app.delete('/api/backups/:filename', authorize('Administrator'), async (req, res
 const PORT = process.env.PORT || 5001;
 
 if (process.env.NODE_ENV !== 'test') {
-  app.listen(PORT, () => {
+  server.listen(PORT, () => {
     console.log(`Server running on port ${PORT} (mysql mode)`);
   });
 }
 
-module.exports = app;
+module.exports = { app, io, server };

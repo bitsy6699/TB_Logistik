@@ -7,11 +7,11 @@ import DataTable from '../components/DataTable';
 import FormField from '../components/FormField';
 import Modal from '../components/Modal';
 import StatusBadge from '../components/StatusBadge';
-import { Plus } from 'lucide-react';
+import { Plus, QrCode, UserCheck } from 'lucide-react';
 import { exportToCSV } from '../lib/export';
 import { inputClass, textareaClass, primaryButtonClass, secondaryButtonClass, smallButtonClass, iconButtonClass, dangerButtonClass } from '../components/ui';
 
-const ORDER_STATUSES = ['Diproses', 'Dalam perjalanan', 'Sampai tujuan', 'Terkirim', 'Dibatalkan'];
+const ORDER_STATUSES = ['Menunggu Pembayaran', 'Pembayaran Diverifikasi', 'Diproses', 'Dikemas', 'Siap Dijemput', 'Dalam Perjalanan', 'Sampai Tujuan', 'Terkirim', 'Dibatalkan'];
 
 const blankForm = {
   idpelanggan: '',
@@ -45,6 +45,9 @@ export default function Orders() {
   const [sortColumn, setSortColumn] = useState('idpengiriman');
   const [sortOrder, setSortOrder] = useState('desc');
   const [pendingStatus, setPendingStatus] = useState(null);
+  const [assignData, setAssignData] = useState(null);
+  const [qrData, setQrData] = useState(null);
+  const [assigning, setAssigning] = useState(false);
 
   const orderColumns = [
     { 
@@ -113,6 +116,18 @@ export default function Orders() {
       render: (row) => row.total ? `Rp ${Number(row.total).toLocaleString('id-ID')}` : '—'
     },
     {
+      key: 'payment',
+      label: 'Pembayaran',
+      render: (row) => (
+        <div className="text-xs">
+          <span className="capitalize">{row.payment_method || '—'}</span>
+          <span className={`ml-1 inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium ${row.payment_status === 'paid' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
+            {row.payment_status === 'paid' ? 'Lunas' : 'Pending'}
+          </span>
+        </div>
+      ),
+    },
+    {
       key: 'status',
       label: 'Status',
       sortKey: 'status',
@@ -132,6 +147,32 @@ export default function Orders() {
               <option key={s} value={s}>{s}</option>
             ))}
           </select>
+        </div>
+      ),
+    },
+    {
+      key: 'actions',
+      label: 'Aksi',
+      render: (row) => (
+        <div className="flex items-center gap-1">
+          {(row.status === 'Diproses' || row.status === 'Dikemas') && (
+            <button
+              type="button"
+              className={smallButtonClass}
+              title="Tugaskan Kurir"
+              onClick={(e) => { e.stopPropagation(); setAssignData({ id: row.idpengiriman, idkurir: row.idkurir || '', idgudang: row.idgudang || '' }); }}
+            >
+              <UserCheck className="h-3.5 w-3.5 mr-1" /> Kurir
+            </button>
+          )}
+          <button
+            type="button"
+            className={smallButtonClass}
+            title="Tampilkan QR"
+            onClick={async (e) => { e.stopPropagation(); try { const r = await api.get(`/api/orders/${row.idpengiriman}/qrcode`); setQrData(r.data); } catch {} }}
+          >
+            <QrCode className="h-3.5 w-3.5" />
+          </button>
         </div>
       ),
     }
@@ -630,6 +671,59 @@ export default function Orders() {
             </button>
           </div>
         </form>
+      </Modal>
+
+      <Modal isOpen={!!assignData} onClose={() => setAssignData(null)} title="Tugaskan Kurir" description="Pilih kurir untuk pesanan ini.">
+        <div className="space-y-4">
+          <FormField label="Kurir">
+            <select className={inputClass} value={assignData?.idkurir || ''} onChange={(e) => setAssignData(prev => prev ? { ...prev, idkurir: e.target.value } : null)}>
+              <option value="">Pilih Kurir</option>
+              {couriers.map(k => (
+                <option key={k.idkurir} value={k.idkurir} disabled={k.sedang_bertugas}>
+                  {k.nama} ({k.kendaraan}){k.sedang_bertugas ? ' — Sedang Bertugas' : ''}
+                </option>
+              ))}
+            </select>
+          </FormField>
+          <FormField label="Gudang (opsional)">
+            <select className={inputClass} value={assignData?.idgudang || ''} onChange={(e) => setAssignData(prev => prev ? { ...prev, idgudang: e.target.value } : null)}>
+              <option value="">Pilih Gudang</option>
+              {warehouses.map(g => (
+                <option key={g.idgudang} value={g.idgudang}>{g.namagudang} ({g.kota})</option>
+              ))}
+            </select>
+          </FormField>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              className={primaryButtonClass}
+              disabled={!assignData?.idkurir || assigning}
+              onClick={async () => {
+                setAssigning(true);
+                try {
+                  await api.patch(`/api/orders/${assignData.id}/assign-courier`, { idkurir: Number(assignData.idkurir), idgudang: assignData.idgudang || null });
+                  setNotice(`Kurir ditugaskan ke ORD-${assignData.id}.`);
+                  setAssignData(null);
+                  fetchOrders();
+                } catch (err) {
+                  setError(getErrorMessage(err, 'Gagal menugaskan kurir.'));
+                } finally {
+                  setAssigning(false);
+                }
+              }}
+            >
+              {assigning ? 'Menyimpan...' : 'Tugaskan'}
+            </button>
+            <button type="button" className={secondaryButtonClass} onClick={() => setAssignData(null)}>Batal</button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal isOpen={!!qrData} onClose={() => setQrData(null)} title={`QR Code — ORD-${qrData?.idpengiriman || ''}`}>
+        <div className="flex flex-col items-center gap-4 py-4">
+          {qrData?.qrCode && <img src={qrData.qrCode} alt="QR Code" className="w-48 h-48" />}
+          <p className="text-xs text-muted-foreground">Scan QR ini untuk pickup barang</p>
+        </div>
       </Modal>
     </div>
   );

@@ -34,6 +34,14 @@ CREATE TABLE IF NOT EXISTS gudang (
   PRIMARY KEY (idgudang)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+CREATE TABLE IF NOT EXISTS pengirim (
+  idpengirim INT(11) NOT NULL AUTO_INCREMENT,
+  nama VARCHAR(100) NOT NULL,
+  alamat TEXT,
+  notelepon VARCHAR(20),
+  PRIMARY KEY (idpengirim)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 CREATE TABLE IF NOT EXISTS login (
   id INT(11) NOT NULL AUTO_INCREMENT,
   email VARCHAR(100) NOT NULL,
@@ -41,14 +49,17 @@ CREATE TABLE IF NOT EXISTS login (
   role VARCHAR(50) DEFAULT 'Administrator',
   name VARCHAR(100) DEFAULT '',
   idkurir INT(11) DEFAULT NULL,
+  idpelanggan INT(11) DEFAULT NULL,
+  idpengirim INT(11) DEFAULT NULL,
   PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS `order` (
   idpengiriman INT(11) NOT NULL AUTO_INCREMENT,
   idpelanggan INT(11) NOT NULL,
-  idkurir INT(11) NOT NULL,
-  idgudang INT(11) NOT NULL,
+  idkurir INT(11) DEFAULT NULL,
+  idgudang INT(11) DEFAULT NULL,
+  idgudang_pengirim INT(11) DEFAULT NULL,
   nama_pengirim VARCHAR(100) NOT NULL,
   no_hp_pengirim VARCHAR(20) NOT NULL,
   alamat_pengirim TEXT NOT NULL,
@@ -68,6 +79,7 @@ CREATE TABLE IF NOT EXISTS barang (
   nama_barang VARCHAR(100) NOT NULL,
   berat DECIMAL(10,2) NOT NULL,
   kategori VARCHAR(100) DEFAULT 'Umum',
+  idpengirim INT(11) DEFAULT NULL,
   status VARCHAR(50) DEFAULT 'Tersedia',
   PRIMARY KEY (idbarang),
   KEY idpengiriman (idpengiriman)
@@ -104,7 +116,8 @@ ALTER TABLE `order`
   ADD CONSTRAINT order_fk_gudang FOREIGN KEY (idgudang) REFERENCES gudang (idgudang) ON DELETE CASCADE;
 
 ALTER TABLE barang
-  ADD CONSTRAINT barang_fk_order FOREIGN KEY (idpengiriman) REFERENCES `order` (idpengiriman) ON DELETE CASCADE;
+  ADD CONSTRAINT barang_fk_order FOREIGN KEY (idpengiriman) REFERENCES `order` (idpengiriman) ON DELETE CASCADE,
+  ADD CONSTRAINT barang_fk_pengirim FOREIGN KEY (idpengirim) REFERENCES pengirim (idpengirim) ON DELETE SET NULL;
 
 ALTER TABLE trek
   ADD CONSTRAINT trek_fk_order FOREIGN KEY (idpengiriman) REFERENCES `order` (idpengiriman) ON DELETE CASCADE;
@@ -114,7 +127,9 @@ ALTER TABLE penyimpanan_barang
   ADD CONSTRAINT simpan_fk_gudang FOREIGN KEY (idgudang) REFERENCES gudang (idgudang) ON DELETE CASCADE;
 
 ALTER TABLE login
-  ADD CONSTRAINT login_fk_kurir FOREIGN KEY (idkurir) REFERENCES kurir (idkurir) ON DELETE SET NULL;
+  ADD CONSTRAINT login_fk_kurir FOREIGN KEY (idkurir) REFERENCES kurir (idkurir) ON DELETE SET NULL,
+  ADD CONSTRAINT login_fk_pelanggan FOREIGN KEY (idpelanggan) REFERENCES customer (idpelanggan) ON DELETE SET NULL,
+  ADD CONSTRAINT login_fk_pengirim FOREIGN KEY (idpengirim) REFERENCES pengirim (idpengirim) ON DELETE SET NULL;
 
 -- -----------------------------------------------------------
 -- STORED PROCEDURES
@@ -181,10 +196,15 @@ DELIMITER ;
 -- -----------------------------------------------------------
 
 -- Login (admin — password akan di-hash bcrypt saat login pertama)
-INSERT INTO login (id, email, password, role, name, idkurir) VALUES
-(1, 'admin@admin.com', 'admin123', 'Administrator', 'Admin', NULL),
-(2, 'kurir1@kurir.com', 'kurir123', 'Kurir', 'Ahmad Fauzi', 1),
-(3, 'kurir2@kurir.com', 'kurir123', 'Kurir', 'Doni Prasetyo', 2);
+INSERT INTO login (id, email, password, role, name, idkurir, idpelanggan, idpengirim) VALUES
+(1, 'admin@admin.com', 'admin123', 'Administrator', 'Admin', NULL, NULL, NULL),
+(2, 'kurir1@kurir.com', 'kurir123', 'Kurir', 'Ahmad Fauzi', 1, NULL, NULL),
+(3, 'kurir2@kurir.com', 'kurir123', 'Kurir', 'Doni Prasetyo', 2, NULL, NULL),
+(4, 'siti@email.com', 'pelanggan123', 'Pelanggan', 'Siti Aminah', NULL, 1, NULL),
+(5, 'budi@email.com', 'pelanggan123', 'Pelanggan', 'Budi Santoso', NULL, 2, NULL),
+(6, 'citra@email.com', 'pelanggan123', 'Pelanggan', 'Citra Dewi', NULL, 3, NULL),
+(7, 'pengirim1@email.com', 'pengirim123', 'Pengirim', 'PT Sumber Makmur', NULL, NULL, 1),
+(8, 'pengirim2@email.com', 'pengirim123', 'Pengirim', 'CV Berkah Jaya', NULL, NULL, 2);
 
 -- Customer
 INSERT INTO customer (idpelanggan, nama, alamat, notelepon) VALUES
@@ -204,16 +224,21 @@ INSERT INTO gudang (idgudang, namagudang, alamat, kota) VALUES
 (2, 'Gudang Bandung', 'Jl. Soekarno-Hatta No. 120, Bandung', 'Bandung'),
 (3, 'Gudang Surabaya', 'Jl. Raya Surabaya No. 45, Surabaya', 'Surabaya');
 
+-- Pengirim
+INSERT INTO pengirim (idpengirim, nama, alamat, notelepon) VALUES
+(1, 'PT Sumber Makmur', 'Jl. Gatot Subroto No. 99, Jakarta', '021-12345678'),
+(2, 'CV Berkah Jaya', 'Jl. Diponegoro No. 45, Bandung', '022-87654321');
+
 -- Order (mengacu ke customer, kurir, gudang di atas)
 INSERT INTO `order` (idpengiriman, idpelanggan, idkurir, idgudang, nama_pengirim, no_hp_pengirim, alamat_pengirim, estimasi_sampai, tanggalpengiriman, status, total) VALUES
 (1, 1, 1, 1, 'Siti Aminah', '081234567890', 'Jl. Cempaka No. 10, Jakarta', '2026-06-24', '2026-06-21', 'Diproses', 150000.00),
 (2, 2, 2, 2, 'Budi Santoso', '081234567891', 'Jl. Merdeka No. 25, Bandung', '2026-06-25', '2026-06-22', 'Diproses', 250000.00);
 
 -- Barang (mengacu ke order di atas)
-INSERT INTO barang (idbarang, idpengiriman, nama_barang, berat, kategori, status) VALUES
-(1, 1, 'Karton Lipat', 5.00, 'Kemasan', 'Tersedia'),
-(2, 1, 'Bubble Wrap', 2.00, 'Perlindungan', 'Tersedia'),
-(3, 2, 'Label Barcode', 0.50, 'Dokumen', 'Tersedia');
+INSERT INTO barang (idbarang, idpengiriman, nama_barang, berat, kategori, idpengirim, status) VALUES
+(1, 1, 'Karton Lipat', 5.00, 'Kemasan', 1, 'Tersedia'),
+(2, 1, 'Bubble Wrap', 2.00, 'Perlindungan', 1, 'Tersedia'),
+(3, 2, 'Label Barcode', 0.50, 'Dokumen', 2, 'Tersedia');
 
 -- Trek (mengacu ke order di atas)
 INSERT INTO trek (idtrek, idpengiriman, lokasiterakhir, waktuupdate, status) VALUES

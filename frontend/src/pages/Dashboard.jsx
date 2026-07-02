@@ -8,7 +8,7 @@ import SectionCard from '../components/SectionCard';
 import StatCard from '../components/StatCard';
 import { primaryButtonClass, secondaryButtonClass } from '../components/ui';
 
-const PIE_COLORS = ['#0f766e', '#0284c7', '#d97706', '#65a30d', '#dc2626'];
+const PIE_COLORS = ['#0f766e', '#0284c7', '#d97706', '#65a30d', '#dc2626', '#7c3aed', '#06b6d4', '#f59e0b', '#84cc16'];
 
 const statConfig = [
   { key: 'customers', label: 'Total pelanggan', tone: 'teal'},

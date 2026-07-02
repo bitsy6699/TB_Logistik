@@ -46,14 +46,16 @@ CREATE TABLE IF NOT EXISTS login (
   role VARCHAR(50) DEFAULT 'Administrator',
   name VARCHAR(100) DEFAULT '',
   idkurir INT(11) DEFAULT NULL,
+  idpelanggan INT(11) DEFAULT NULL,
+  idpengirim INT(11) DEFAULT NULL,
   PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS `order` (
   idpengiriman INT(11) NOT NULL AUTO_INCREMENT,
   idpelanggan INT(11) NOT NULL,
-  idkurir INT(11) NOT NULL,
-  idgudang INT(11) NOT NULL,
+  idkurir INT(11) DEFAULT NULL,
+  idgudang INT(11) DEFAULT NULL,
   idgudang_pengirim INT(11) DEFAULT NULL,
   nama_pengirim VARCHAR(100) NOT NULL,
   no_hp_pengirim VARCHAR(20) NOT NULL,
@@ -62,6 +64,8 @@ CREATE TABLE IF NOT EXISTS `order` (
   tanggalpengiriman DATE NOT NULL,
   status VARCHAR(50) DEFAULT 'Diproses',
   total DECIMAL(12,2) DEFAULT 0,
+  payment_method VARCHAR(50) DEFAULT NULL,
+  payment_status VARCHAR(50) DEFAULT 'pending',
   PRIMARY KEY (idpengiriman),
   KEY idpelanggan (idpelanggan),
   KEY idkurir (idkurir),
@@ -72,12 +76,23 @@ CREATE TABLE IF NOT EXISTS `order` (
 CREATE TABLE IF NOT EXISTS barang (
   idbarang INT(11) NOT NULL AUTO_INCREMENT,
   nama_barang VARCHAR(100) NOT NULL,
-  jumlah INT DEFAULT 1,
+  jumlah INT(11) DEFAULT 1,
   berat DECIMAL(10,2) NOT NULL,
-  harga DECIMAL(12,2) DEFAULT 0,
+  harga DECIMAL(12,2) DEFAULT 0.00,
   kategori VARCHAR(100) DEFAULT 'Umum',
+  idpengirim INT(11) DEFAULT NULL,
   status VARCHAR(50) DEFAULT 'Tersedia',
   PRIMARY KEY (idbarang)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ── Pengirim ──
+
+CREATE TABLE IF NOT EXISTS pengirim (
+  idpengirim INT(11) NOT NULL AUTO_INCREMENT,
+  nama VARCHAR(100) NOT NULL,
+  alamat TEXT,
+  notelepon VARCHAR(20),
+  PRIMARY KEY (idpengirim)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS trek (
@@ -95,6 +110,8 @@ CREATE TABLE IF NOT EXISTS order_barang (
   idpengiriman INT(11) NOT NULL,
   idbarang INT(11) NOT NULL,
   jumlah INT DEFAULT 1,
+  seller_confirmed TINYINT(1) DEFAULT 0,
+  confirmed_at DATETIME DEFAULT NULL,
   PRIMARY KEY (id),
   KEY idpengiriman (idpengiriman),
   KEY idbarang (idbarang)
@@ -148,7 +165,12 @@ ALTER TABLE penyimpanan_barang
   ADD CONSTRAINT simpan_fk_gudang FOREIGN KEY (idgudang) REFERENCES gudang (idgudang) ON DELETE CASCADE;
 
 ALTER TABLE login
-  ADD CONSTRAINT login_fk_kurir FOREIGN KEY (idkurir) REFERENCES kurir (idkurir) ON DELETE SET NULL;
+  ADD CONSTRAINT login_fk_kurir FOREIGN KEY (idkurir) REFERENCES kurir (idkurir) ON DELETE SET NULL,
+  ADD CONSTRAINT login_fk_pelanggan FOREIGN KEY (idpelanggan) REFERENCES customer (idpelanggan) ON DELETE SET NULL,
+  ADD CONSTRAINT login_fk_pengirim FOREIGN KEY (idpengirim) REFERENCES pengirim (idpengirim) ON DELETE SET NULL;
+
+ALTER TABLE barang
+  ADD CONSTRAINT barang_fk_pengirim FOREIGN KEY (idpengirim) REFERENCES pengirim (idpengirim) ON DELETE SET NULL;
 
 -- -----------------------------------------------------------
 -- STORED PROCEDURES
@@ -210,10 +232,13 @@ DELIMITER ;
 -- SEED DATA
 -- -----------------------------------------------------------
 
-INSERT INTO login (id, email, password, role, name, idkurir) VALUES
-(1, 'admin@admin.com', 'admin123', 'Administrator', 'Admin', NULL),
-(2, 'kurir1@kurir.com', 'kurir123', 'Kurir', 'Ahmad Fauzi', 1),
-(3, 'kurir2@kurir.com', 'kurir123', 'Kurir', 'Doni Prasetyo', 2)
+INSERT INTO login (id, email, password, role, name, idkurir, idpelanggan) VALUES
+(1, 'admin@admin.com', 'admin123', 'Administrator', 'Admin', NULL, NULL),
+(2, 'kurir1@kurir.com', 'kurir123', 'Kurir', 'Ahmad Fauzi', 1, NULL),
+(3, 'kurir2@kurir.com', 'kurir123', 'Kurir', 'Doni Prasetyo', 2, NULL),
+(4, 'siti@email.com', 'pelanggan123', 'Pelanggan', 'Siti Aminah', NULL, 1),
+(5, 'budi@email.com', 'pelanggan123', 'Pelanggan', 'Budi Santoso', NULL, 2),
+(6, 'citra@email.com', 'pelanggan123', 'Pelanggan', 'Citra Dewi', NULL, 3)
 ON DUPLICATE KEY UPDATE email=email;
 
 INSERT INTO customer (idpelanggan, nama, alamat, notelepon) VALUES

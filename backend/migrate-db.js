@@ -55,6 +55,14 @@ async function migrateDb() {
     try { await conn.query('ALTER TABLE `penyimpanan_barang` ADD COLUMN `jumlah_masuk` INT DEFAULT 1'); } catch (e) { if (!e.message.includes('Duplicate')) throw e; }
     try { await conn.query('ALTER TABLE `penyimpanan_barang` ADD COLUMN `jumlah_keluar` INT DEFAULT NULL'); } catch (e) { if (!e.message.includes('Duplicate')) throw e; }
 
+    console.log('Adding columns to `order` for payment & barcode...');
+    try { await conn.query('ALTER TABLE `order` ADD COLUMN `payment_method` VARCHAR(50) DEFAULT NULL'); } catch (e) { if (!e.message.includes('Duplicate')) throw e; }
+    try { await conn.query('ALTER TABLE `order` ADD COLUMN `payment_status` VARCHAR(50) DEFAULT \'pending\''); } catch (e) { if (!e.message.includes('Duplicate')) throw e; }
+
+    console.log('Adding columns to `order_barang` for multi-seller confirmation...');
+    try { await conn.query('ALTER TABLE `order_barang` ADD COLUMN `seller_confirmed` TINYINT(1) DEFAULT 0'); } catch (e) { if (!e.message.includes('Duplicate')) throw e; }
+    try { await conn.query('ALTER TABLE `order_barang` ADD COLUMN `confirmed_at` DATETIME DEFAULT NULL'); } catch (e) { if (!e.message.includes('Duplicate')) throw e; }
+
     console.log('Creating audit_log table...');
     try {
       await conn.query(`

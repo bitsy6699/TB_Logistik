@@ -1,5 +1,6 @@
 /* eslint-disable react-refresh/only-export-components */
-import { createContext, useCallback, useContext, useMemo, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { io } from 'socket.io-client';
 import api from '../lib/api';
 import { readSession, writeSession, clearSession } from '../lib/auth';
 import { getErrorMessage } from '../lib/errors';
@@ -8,6 +9,22 @@ const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
   const [session, setSession] = useState(() => readSession());
+  const socketRef = useRef(null);
+
+  useEffect(() => {
+    if (session?.token) {
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
+      const s = io(API_URL, {
+        auth: { token: session.token },
+        transports: ['websocket', 'polling'],
+      });
+      socketRef.current = s;
+      return () => { s.disconnect(); socketRef.current = null; };
+    }
+    socketRef.current = null;
+  }, [session?.token]);
+
+  const getSocket = useCallback(() => socketRef.current, []);
 
   const login = useCallback(async ({ username, password }) => {
     try {
@@ -30,6 +47,10 @@ export function AuthProvider({ children }) {
   }, []);
 
   const logout = useCallback(() => {
+    if (socketRef.current) {
+      socketRef.current.disconnect();
+      socketRef.current = null;
+    }
     clearSession();
     setSession(null);
   }, []);
@@ -40,10 +61,11 @@ export function AuthProvider({ children }) {
       token: session?.token ?? null,
       session,
       isAuthenticated: Boolean(session?.token),
+      getSocket,
       login,
       logout,
     }),
-    [login, logout, session],
+    [getSocket, login, logout, session],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
