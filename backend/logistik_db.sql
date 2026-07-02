@@ -251,7 +251,8 @@ INSERT INTO kurir (idkurir, nama, notelepon, kendaraan) VALUES
 
 INSERT INTO pengirim (idpengirim, nama, alamat, notelepon) VALUES
 (1, 'PT Sumber Makmur', 'Jl. Gatot Subroto No. 99, Jakarta', '021-12345678'),
-(2, 'CV Berkah Jaya', 'Jl. Diponegoro No. 45, Bandung', '022-87654321');
+(2, 'CV Berkah Jaya', 'Jl. Diponegoro No. 45, Bandung', '022-87654321')
+ON DUPLICATE KEY UPDATE nama=nama;
 
 INSERT INTO gudang (idgudang, namagudang, alamat, kota) VALUES
 (1, 'Gudang Utama Jakarta', 'Jl. Industri Raya No. 88, Jakarta', 'Jakarta'),
