@@ -228,13 +228,15 @@ DELIMITER ;
 -- SEED DATA
 -- -----------------------------------------------------------
 
-INSERT INTO login (id, email, password, role, name, idkurir, idpelanggan) VALUES
-(1, 'admin@admin.com', 'admin123', 'Administrator', 'Admin', NULL, NULL),
-(2, 'kurir1@kurir.com', 'kurir123', 'Kurir', 'Ahmad Fauzi', 1, NULL),
-(3, 'kurir2@kurir.com', 'kurir123', 'Kurir', 'Doni Prasetyo', 2, NULL),
-(4, 'siti@email.com', 'pelanggan123', 'Pelanggan', 'Siti Aminah', NULL, 1),
-(5, 'budi@email.com', 'pelanggan123', 'Pelanggan', 'Budi Santoso', NULL, 2),
-(6, 'citra@email.com', 'pelanggan123', 'Pelanggan', 'Citra Dewi', NULL, 3)
+INSERT INTO login (id, email, password, role, name, idkurir, idpelanggan, idpengirim) VALUES
+(1, 'admin@admin.com', 'admin123', 'Administrator', 'Admin', NULL, NULL, NULL),
+(2, 'kurir1@kurir.com', 'kurir123', 'Kurir', 'Ahmad Fauzi', 1, NULL, NULL),
+(3, 'kurir2@kurir.com', 'kurir123', 'Kurir', 'Doni Prasetyo', 2, NULL, NULL),
+(4, 'siti@email.com', 'pelanggan123', 'Pelanggan', 'Siti Aminah', NULL, 1, NULL),
+(5, 'budi@email.com', 'pelanggan123', 'Pelanggan', 'Budi Santoso', NULL, 2, NULL),
+(6, 'citra@email.com', 'pelanggan123', 'Pelanggan', 'Citra Dewi', NULL, 3, NULL),
+(7, 'pengirim1@email.com', 'pengirim123', 'Pengirim', 'PT Sumber Makmur', NULL, NULL, 1),
+(8, 'pengirim2@email.com', 'pengirim123', 'Pengirim', 'CV Berkah Jaya', NULL, NULL, 2)
 ON DUPLICATE KEY UPDATE email=email;
 
 INSERT INTO customer (idpelanggan, nama, alamat, notelepon) VALUES
@@ -246,6 +248,10 @@ INSERT INTO kurir (idkurir, nama, notelepon, kendaraan) VALUES
 (1, 'Ahmad Fauzi', '081212345678', 'Motor Box'),
 (2, 'Doni Prasetyo', '081312345679', 'Mobil Pickup'),
 (3, 'Eko Saputra', '081412345680', 'Motor Box');
+
+INSERT INTO pengirim (idpengirim, nama, alamat, notelepon) VALUES
+(1, 'PT Sumber Makmur', 'Jl. Gatot Subroto No. 99, Jakarta', '021-12345678'),
+(2, 'CV Berkah Jaya', 'Jl. Diponegoro No. 45, Bandung', '022-87654321');
 
 INSERT INTO gudang (idgudang, namagudang, alamat, kota) VALUES
 (1, 'Gudang Utama Jakarta', 'Jl. Industri Raya No. 88, Jakarta', 'Jakarta'),
