@@ -26,7 +26,7 @@ async function migrateDb() {
 
     console.log('Making `barang` independent (drop idpengiriman FK & column)...');
     const [fkRows] = await conn.query(`SELECT CONSTRAINT_NAME FROM information_schema.TABLE_CONSTRAINTS
-       WHERE TABLE_NAME='barang' AND TABLE_SCHEMA='logistik_db' AND CONSTRAINT_TYPE='FOREIGN KEY'`);
+       WHERE TABLE_NAME='barang' AND TABLE_SCHEMA=(SELECT DATABASE()) AND CONSTRAINT_TYPE='FOREIGN KEY'`);
     if (fkRows.length) {
       for (const fk of fkRows) {
         try { await conn.query(`ALTER TABLE \`barang\` DROP FOREIGN KEY \`${fk.CONSTRAINT_NAME}\``); } catch (e) { console.error('  FK drop warning:', e.message); }
