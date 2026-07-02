@@ -13,6 +13,16 @@ import { inputClass, textareaClass, primaryButtonClass, secondaryButtonClass, sm
 
 const ORDER_STATUSES = ['Menunggu Pembayaran', 'Pembayaran Diverifikasi', 'Diproses', 'Dikemas', 'Siap Dijemput', 'Dalam Perjalanan', 'Sampai Tujuan', 'Terkirim', 'Dibatalkan'];
 
+const VALID_TRANSITIONS = {
+  'Menunggu Pembayaran': ['Pembayaran Diverifikasi', 'Dibatalkan'],
+  'Pembayaran Diverifikasi': ['Diproses', 'Dibatalkan'],
+  'Diproses': ['Dikemas', 'Dibatalkan'],
+  'Dikemas': ['Siap Dijemput'],
+  'Siap Dijemput': ['Dalam Perjalanan'],
+  'Dalam Perjalanan': ['Sampai Tujuan'],
+  'Sampai Tujuan': ['Terkirim'],
+};
+
 const blankForm = {
   idpelanggan: '',
   idkurir: '',
@@ -143,7 +153,7 @@ export default function Orders() {
             className="rounded-lg border border-border px-1.5 py-1 text-[11px] text-muted-foreground outline-none transition hover:border-muted-foreground/30 focus:border-ring"
           >
             <option value="">Ubah</option>
-            {ORDER_STATUSES.filter(s => s !== row.status).map(s => (
+            {(VALID_TRANSITIONS[row.status] || []).filter(s => s !== row.status).map(s => (
               <option key={s} value={s}>{s}</option>
             ))}
           </select>

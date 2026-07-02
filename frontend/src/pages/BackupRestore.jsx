@@ -103,13 +103,17 @@ export default function BackupRestore() {
       key: '_actions', label: 'Aksi',
       render: (row) => (
         <div className="flex gap-2">
-          <a
-            href={`/api/backups/download/${encodeURIComponent(row.filename)}`}
+          <button
+            type="button"
             className={smallButtonClass}
             title="Download"
+            onClick={() => {
+              const url = `${api.defaults.baseURL || ''}/api/backups/download/${encodeURIComponent(row.filename)}`;
+              window.open(url, '_blank');
+            }}
           >
             <Download className="h-3.5 w-3.5" />
-          </a>
+          </button>
           <button
             type="button"
             className={dangerButtonClass}

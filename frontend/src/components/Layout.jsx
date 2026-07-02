@@ -25,7 +25,7 @@ const navGroups = [
     items: [
       { to: '/orders', label: 'Pengiriman' },
       { to: '/treks', label: 'Lacak Kiriman' },
-      { to: '/kurir', label: 'Kurir' },
+      { to: '/kurir', label: 'Tugas Kurir' },
       { to: '/penyimpanans', label: 'Penyimpanan' },
     ],
   },

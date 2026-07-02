@@ -9,7 +9,11 @@ import { inputClass, primaryButtonClass, secondaryButtonClass } from '../compone
 import { useAuth } from '../context/AuthContext';
 import { Package, MapPin, ChevronDown, ChevronUp } from 'lucide-react';
 
-const ORDER_STATUSES = ['Diproses', 'Dalam perjalanan', 'Sampai tujuan', 'Terkirim', 'Dibatalkan'];
+const VALID_TRANSITIONS = {
+  'Siap Dijemput': ['Dalam Perjalanan'],
+  'Dalam Perjalanan': ['Sampai Tujuan'],
+  'Sampai Tujuan': ['Terkirim'],
+};
 
 export default function KurirPage() {
   const { user } = useAuth();
@@ -135,7 +139,8 @@ export default function KurirPage() {
 }
 
 function UpdateForm({ order, saving, onUpdate, onCancel }) {
-  const [status, setStatus] = useState('');
+  const allowedNext = VALID_TRANSITIONS[order.status] || [];
+  const [status, setStatus] = useState(allowedNext.length === 1 ? allowedNext[0] : '');
   const [lokasi, setLokasi] = useState('');
 
   const handleSubmit = (e) => {
@@ -145,6 +150,14 @@ function UpdateForm({ order, saving, onUpdate, onCancel }) {
   };
 
   const isSaving = saving === order.idpengiriman;
+
+  if (allowedNext.length === 0) {
+    return (
+      <div className="mt-4 border-t border-border pt-4 text-sm text-muted-foreground">
+        Tidak ada perubahan status yang tersedia untuk "{order.status}".
+      </div>
+    );
+  }
 
   return (
     <form onSubmit={handleSubmit} className="mt-4 border-t border-border pt-4">
@@ -158,7 +171,7 @@ function UpdateForm({ order, saving, onUpdate, onCancel }) {
         <FormField label="Status Baru">
           <select className={inputClass} value={status} onChange={(e) => setStatus(e.target.value)} required>
             <option value="">Pilih Status</option>
-            {ORDER_STATUSES.filter((s) => s !== order.status).map((s) => (
+            {allowedNext.map((s) => (
               <option key={s} value={s}>{s}</option>
             ))}
           </select>

@@ -65,7 +65,8 @@ export default function Penyimpanans() {
   const fetchItems = useCallback(async () => {
     try {
       const response = await api.get('/api/barangs');
-      setItems(response.data);
+      const d = response.data;
+      setItems(Array.isArray(d) ? d : (d.data || []));
     } catch (fetchError) {
       setError(getErrorMessage(fetchError, 'Gagal memuat data barang.'));
     }
@@ -74,7 +75,8 @@ export default function Penyimpanans() {
   const fetchWarehouses = useCallback(async () => {
     try {
       const response = await api.get('/api/gudangs');
-      setWarehouses(response.data);
+      const d = response.data;
+      setWarehouses(Array.isArray(d) ? d : (d.data || []));
     } catch (fetchError) {
       setError(getErrorMessage(fetchError, 'Gagal memuat data gudang.'));
     }
