@@ -1792,9 +1792,35 @@ app.delete('/api/backups/:filename', authorize('Administrator'), async (req, res
 
 const PORT = process.env.PORT || 5001;
 
+async function autoSetup() {
+  try {
+    const fs = require('fs');
+    const sqlFile = path.join(__dirname, 'logistik_db.sql');
+    if (fs.existsSync(sqlFile)) {
+      const sql = fs.readFileSync(sqlFile, 'utf8');
+      const conn = await db.getConnection();
+      try {
+        await conn.query('SET FOREIGN_KEY_CHECKS = 0');
+        const statements = sql.split(';').filter(s => s.trim());
+        for (const stmt of statements) {
+          try { await conn.query(stmt); } catch (e) { if (e.message.includes('already exists')) continue; }
+        }
+        await conn.query('SET FOREIGN_KEY_CHECKS = 1');
+        console.log('Database schema imported.');
+      } finally { conn.release(); }
+    }
+    const migrate = require('./migrate-db');
+    if (typeof migrate === 'function') await migrate();
+  } catch (e) {
+    console.log('Auto-setup skipped:', e.message);
+  }
+}
+
 if (process.env.NODE_ENV !== 'test') {
-  server.listen(PORT, () => {
-    console.log(`Server running on port ${PORT} (mysql mode)`);
+  autoSetup().then(() => {
+    server.listen(PORT, () => {
+      console.log(`Server running on port ${PORT} (mysql mode)`);
+    });
   });
 }
 

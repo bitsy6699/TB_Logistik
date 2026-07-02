@@ -142,3 +142,5 @@ async function migrateDb() {
 }
 
 migrateDb();
+
+module.exports = migrateDb;
