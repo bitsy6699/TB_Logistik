@@ -132,7 +132,7 @@ export default function Warehouses() {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-fadeIn">
       <PageHeader
         title="Data gudang"
         actions={
@@ -160,13 +160,13 @@ export default function Warehouses() {
       />
 
       {notice ? (
-        <div className="rounded-[24px] border border-teal-200 bg-teal-50 px-4 py-3 text-sm text-teal-700">
+        <div className="rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 text-sm text-primary">
           {notice}
         </div>
       ) : null}
 
       {error ? (
-        <div className="rounded-[24px] border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+        <div className="rounded-xl border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">
           {error}
         </div>
       ) : null}
@@ -252,4 +252,3 @@ export default function Warehouses() {
     </div>
   );
 }
-

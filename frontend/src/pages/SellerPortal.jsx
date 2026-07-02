@@ -5,6 +5,7 @@ import { getErrorMessage } from '../lib/errors';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '../context/AuthContext';
+import StatusBadge from '../components/StatusBadge';
 import { LogOut, Package, ShoppingBag, ArrowLeft, Clock, Plus, Pencil, Trash2, CheckCircle, XCircle } from 'lucide-react';
 
 const CANCELLABLE_STATUSES = ['Menunggu Pembayaran', 'Pembayaran Diverifikasi', 'Diproses'];
@@ -42,24 +43,24 @@ function BarangForm({ item, onSaved, onCancel }) {
 
   return (
     <form onSubmit={handleSubmit} className="max-w-lg mx-auto space-y-4">
-      {error && <div className="p-3 rounded bg-destructive/10 text-destructive text-sm">{error}</div>}
+      {error && <div className="p-3 rounded-xl bg-destructive/10 text-destructive text-sm">{error}</div>}
       <div>
         <label className="text-sm font-medium">Nama Barang</label>
-        <input className="w-full border rounded px-3 py-2 text-sm" value={nama_barang} onChange={e => setNama(e.target.value)} required />
+        <input className="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm" value={nama_barang} onChange={e => setNama(e.target.value)} required />
       </div>
       <div className="grid grid-cols-2 gap-4">
         <div>
           <label className="text-sm font-medium">Harga</label>
-          <input type="number" className="w-full border rounded px-3 py-2 text-sm" value={harga} onChange={e => setHarga(e.target.value)} min="0" required />
+          <input type="number" className="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm" value={harga} onChange={e => setHarga(e.target.value)} min="0" required />
         </div>
         <div>
           <label className="text-sm font-medium">Stok</label>
-          <input type="number" className="w-full border rounded px-3 py-2 text-sm" value={jumlah} onChange={e => setJumlah(e.target.value)} min="0" required />
+          <input type="number" className="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm" value={jumlah} onChange={e => setJumlah(e.target.value)} min="0" required />
         </div>
       </div>
       <div>
         <label className="text-sm font-medium">Kategori</label>
-        <input className="w-full border rounded px-3 py-2 text-sm" value={kategori} onChange={e => setKategori(e.target.value)} placeholder="Umum" />
+        <input className="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm" value={kategori} onChange={e => setKategori(e.target.value)} placeholder="Umum" />
       </div>
       <div className="flex gap-2">
         <Button type="submit" disabled={saving}>{saving ? 'Menyimpan...' : item ? 'Simpan' : 'Tambah Barang'}</Button>
@@ -141,9 +142,7 @@ function BarangTab() {
               <CardContent>
                 <div className="flex items-center justify-between text-sm">
                   <span className="font-semibold">Rp {Number(b.harga).toLocaleString('id')}</span>
-                  <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${b.status === 'Tersedia' ? 'bg-secondary text-secondary-foreground' : 'bg-destructive text-destructive-foreground'}`}>
-                    {b.status}
-                  </span>
+                  <StatusBadge status={b.status} />
                 </div>
                 {b.stok != null && (
                   <p className="text-xs text-muted-foreground mt-2">Stok: {b.stok}</p>
@@ -215,7 +214,7 @@ function PesananTab() {
           <CardHeader>
             <CardTitle className="flex items-center justify-between">
               <span>Pesanan #{detail.idpengiriman}</span>
-              <span className="inline-flex items-center rounded-full bg-secondary px-2.5 py-0.5 text-xs font-medium text-secondary-foreground">{detail.status}</span>
+              <StatusBadge status={detail.status} />
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
@@ -235,9 +234,9 @@ function PesananTab() {
                 <div className="text-right">
                   <span>Rp {(item.harga * item.jumlah).toLocaleString('id')}</span>
                   {item.seller_confirmed === 1 ? (
-                    <span className="ml-2 inline-flex items-center rounded-full bg-green-100 px-1.5 py-0.5 text-xs font-medium text-green-800"><CheckCircle className="h-3 w-3 mr-0.5" />OK</span>
+                    <span className="ml-2 inline-flex items-center rounded-full bg-emerald-50 px-1.5 py-0.5 text-xs font-medium text-emerald-700"><CheckCircle className="h-3 w-3 mr-0.5" />OK</span>
                   ) : (
-                    <span className="ml-2 inline-flex items-center rounded-full bg-yellow-100 px-1.5 py-0.5 text-xs font-medium text-yellow-800">Pending</span>
+                    <span className="ml-2 inline-flex items-center rounded-full bg-amber-50 px-1.5 py-0.5 text-xs font-medium text-amber-700">Pending</span>
                   )}
                 </div>
               </div>
@@ -297,14 +296,14 @@ function PesananTab() {
               <p className="text-sm text-muted-foreground">{o.nama_pelanggan}</p>
               <p className="text-xs text-muted-foreground">{o.items}</p>
               {o.items_confirmed > 0 && (
-                <span className="inline-flex items-center rounded-full bg-green-100 px-1.5 py-0.5 text-xs font-medium text-green-800 mt-1">
+                <span className="inline-flex items-center rounded-full bg-emerald-50 px-1.5 py-0.5 text-xs font-medium text-emerald-700 mt-1">
                   <CheckCircle className="h-3 w-3 mr-0.5" /> {o.items_confirmed} dikonfirmasi
                 </span>
               )}
             </div>
             <div className="text-right">
               <p className="font-bold">Rp {Number(o.total).toLocaleString('id')}</p>
-              <span className="inline-flex items-center rounded-full bg-secondary px-2.5 py-0.5 text-xs font-medium text-secondary-foreground">{o.status}</span>
+              <StatusBadge status={o.status} />
               {needsConfirmation(o) && (
                 <Button size="sm" variant="outline" className="mt-2 w-full" onClick={(e) => { e.stopPropagation(); handleConfirm(o.idpengiriman); }} disabled={actionLoading === o.idpengiriman}>
                   Konfirmasi
@@ -344,7 +343,7 @@ export default function SellerPortal() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background animate-fadeIn">
       <header className="border-b sticky top-0 bg-background/95 backdrop-blur z-10">
         <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between">
           <h1 className="text-lg font-bold">TB Logistik — Pengirim</h1>

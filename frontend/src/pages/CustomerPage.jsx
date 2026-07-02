@@ -5,6 +5,7 @@ import api from '../lib/api';
 import { getErrorMessage } from '../lib/errors';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import StatusBadge from '../components/StatusBadge';
 
 import { ShoppingCart, Package, Clock, Trash2, Minus, Plus, ArrowLeft, LogOut, CreditCard, XCircle, CheckCircle } from 'lucide-react';
 
@@ -224,7 +225,7 @@ function PesananTab({ onOrderUpdated }) {
           <CardHeader>
             <CardTitle className="flex items-center justify-between">
               <span>Pesanan #{detail.idpengiriman}</span>
-              <span className="inline-flex items-center rounded-full bg-secondary px-2.5 py-0.5 text-xs font-medium text-secondary-foreground">{detail.status}</span>
+              <StatusBadge status={detail.status} />
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
@@ -236,7 +237,7 @@ function PesananTab({ onOrderUpdated }) {
               <div className="text-right">
                 <p className="text-sm text-muted-foreground">Pembayaran</p>
                 <p>{detail.payment_method ? paymentLabel(detail.payment_method) : '—'}</p>
-                <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${detail.payment_status === 'paid' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
+                <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${detail.payment_status === 'paid' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>
                   {detail.payment_status === 'paid' ? 'Lunas' : 'Belum Dibayar'}
                 </span>
               </div>
@@ -319,7 +320,7 @@ function PesananTab({ onOrderUpdated }) {
             </div>
             <div className="text-right">
               <p className="font-bold">Rp {Number(o.total).toLocaleString('id')}</p>
-              <span className="inline-flex items-center rounded-full bg-secondary px-2.5 py-0.5 text-xs font-medium text-secondary-foreground">{o.status}</span>
+              <StatusBadge status={o.status} />
               {o.payment_method && (
                 <p className="text-xs text-muted-foreground mt-1">{paymentLabel(o.payment_method)}</p>
               )}
@@ -406,7 +407,7 @@ export default function CustomerPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background animate-fadeIn">
       <header className="border-b sticky top-0 bg-background/95 backdrop-blur z-10">
         <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between">
           <h1 className="text-lg font-bold">TB Logistik — Pelanggan</h1>
@@ -444,7 +445,7 @@ export default function CustomerPage() {
       </header>
       <main className="max-w-6xl mx-auto px-4 py-6">
         {error && (
-          <div className="mb-4 p-3 rounded bg-destructive/10 text-destructive text-sm">
+          <div className="mb-4 p-3 rounded-xl bg-destructive/10 text-destructive text-sm">
             {error}
           </div>
         )}

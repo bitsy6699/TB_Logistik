@@ -148,7 +148,7 @@ export default function Customers() {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-fadeIn">
       <PageHeader
         title="Data pelanggan"
         actions={
@@ -173,13 +173,13 @@ export default function Customers() {
       />
 
       {notice ? (
-        <div className="rounded-[24px] border border-teal-200 bg-teal-50 px-4 py-3 text-sm text-teal-700">
+        <div className="rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 text-sm text-primary">
           {notice}
         </div>
       ) : null}
 
       {error ? (
-        <div className="rounded-[24px] border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+        <div className="rounded-xl border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">
           {error}
         </div>
       ) : null}
@@ -193,7 +193,7 @@ export default function Customers() {
               <button type="button" onClick={() => exportToCSV(customers, customerColumns, 'pelanggan.csv')} className={smallButtonClass}>
                 Export CSV
               </button>
-              <Link to="/orders" className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50">
+              <Link to="/orders" className="rounded-full border border-input bg-background px-4 py-2 text-sm font-semibold text-foreground transition hover:bg-accent hover:text-accent-foreground">
                 Lihat pengiriman
               </Link>
             </div>
@@ -277,4 +277,3 @@ export default function Customers() {
     </div>
   );
 }
-

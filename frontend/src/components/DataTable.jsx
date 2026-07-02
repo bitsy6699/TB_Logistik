@@ -19,8 +19,8 @@ function prettifyKey(key) {
 }
 
 function formatValue(value) {
-  if (value === null || value === undefined || value === '') return '—';
-  if (Array.isArray(value)) return value.length ? value.join(', ') : '—';
+  if (value === null || value === undefined || value === '') return '\u2014';
+  if (Array.isArray(value)) return value.length ? value.join(', ') : '\u2014';
   if (typeof value === 'object') return JSON.stringify(value);
   return String(value);
 }
@@ -94,7 +94,7 @@ export default function DataTable({
     }
 
     return (
-      <div className="flex items-center justify-end gap-3 border-t px-4 py-3">
+      <div className="flex items-center justify-end gap-3 border-t border-border px-4 py-3">
         <span className="shrink-0 text-xs font-medium text-muted-foreground">
           {total !== undefined ? `${total.toLocaleString('id-ID')} total` : ''}
         </span>
@@ -149,9 +149,9 @@ export default function DataTable({
     return (
       <div className="space-y-3">
         {hasSearch && <div className="h-9 rounded-xl bg-muted" />}
-        <div className="h-10 rounded-2xl bg-muted" />
-        <div className="h-10 rounded-2xl bg-muted" />
-        <div className="h-10 rounded-2xl bg-muted" />
+        <div className="h-10 rounded-xl bg-muted" />
+        <div className="h-10 rounded-xl bg-muted" />
+        <div className="h-10 rounded-xl bg-muted" />
       </div>
     );
   }
@@ -168,20 +168,20 @@ export default function DataTable({
             value={localSearch}
             onChange={(e) => setLocalSearch(e.target.value)}
             placeholder="Cari data..."
-            className="h-auto rounded-2xl px-4 py-3"
+            className="h-auto rounded-xl px-4 py-3"
           />
         </div>
       )}
 
       {!rows.length ? (
-        <div className="rounded-[24px] border border-dashed bg-muted/50 px-6 py-10 text-center">
+        <div className="text-center py-10 text-muted-foreground">
           <p className="font-display text-lg font-semibold tracking-tight">{emptyTitle}</p>
           <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-muted-foreground">
             {emptyDescription}
           </p>
         </div>
       ) : (
-        <div className="overflow-hidden rounded-[24px] border">
+        <div className="overflow-hidden rounded-xl border border-border">
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
@@ -193,7 +193,7 @@ export default function DataTable({
                         key={column.key}
                         onClick={() => isSortable && handleSort(column.sortKey || column.key)}
                         className={[
-                          'h-11 px-5 text-[11px] font-semibold uppercase tracking-[0.2em]',
+                          'h-11 px-5 bg-secondary text-xs font-semibold uppercase tracking-widest text-muted-foreground',
                           isSortable ? 'cursor-pointer select-none hover:text-foreground' : '',
                           column.key === '_actions' ? 'text-right' : '',
                           column.headerClassName || '',
@@ -213,11 +213,11 @@ export default function DataTable({
               </TableHeader>
               <TableBody>
                 {rows.map((row, index) => (
-                  <TableRow key={getRowKey?.(row, index) ?? row.id ?? row.idpelanggan ?? index}>
+                  <TableRow key={getRowKey?.(row, index) ?? row.id ?? row.idpelanggan ?? index} className="hover:bg-muted/50 transition-colors">
                     {resolvedColumns.map((column) => {
                       const value = column.render ? column.render(row, index) : formatValue(row[column.key]);
                       return (
-                        <TableCell key={column.key} className={`p-4 px-5 ${column.className || 'whitespace-nowrap'}`}>
+                        <TableCell key={column.key} className={`p-4 px-5 text-sm border-b border-border whitespace-nowrap ${column.className || 'whitespace-nowrap'}`}>
                           {value}
                         </TableCell>
                       );

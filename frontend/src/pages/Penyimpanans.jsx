@@ -182,7 +182,7 @@ export default function Penyimpanans() {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="animate-fadeIn space-y-6">
       <PageHeader
         title="Penyimpanan Barang"
         actions={
@@ -210,13 +210,13 @@ export default function Penyimpanans() {
       />
 
       {notice ? (
-        <div className="rounded-[24px] border border-teal-200 bg-teal-50 px-4 py-3 text-sm text-teal-700">
+        <div className="rounded-xl border border-border bg-card px-4 py-3 text-sm text-foreground">
           {notice}
         </div>
       ) : null}
 
       {error ? (
-        <div className="rounded-[24px] border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+        <div className="rounded-xl border border-border bg-card px-4 py-3 text-sm text-foreground">
           {error}
         </div>
       ) : null}

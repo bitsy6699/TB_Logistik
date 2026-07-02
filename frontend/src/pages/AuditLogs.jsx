@@ -8,9 +8,9 @@ import { exportToCSV } from '../lib/export';
 import { smallButtonClass } from '../components/ui';
 
 const actionColors = {
-  CREATE: 'bg-emerald-50 text-emerald-700',
-  UPDATE: 'bg-amber-50 text-amber-700',
-  DELETE: 'bg-rose-50 text-rose-700',
+  CREATE: 'bg-primary/10 text-primary',
+  UPDATE: 'bg-muted text-muted-foreground',
+  DELETE: 'bg-foreground/5 text-foreground',
 };
 
 export default function AuditLogs() {
@@ -53,11 +53,11 @@ export default function AuditLogs() {
   }, [fetchLogs]);
 
   const logColumns = [
-    { key: 'id', label: 'ID', className: 'text-slate-400' },
+    { key: 'id', label: 'ID', className: 'text-muted-foreground' },
     {
       key: 'table_name', label: 'Tabel', sortKey: 'table_name',
       render: (row) => (
-        <code className="rounded-md bg-slate-100 px-2 py-0.5 text-xs font-mono text-slate-700">
+        <code className="rounded-md bg-muted px-2 py-0.5 text-xs font-mono text-muted-foreground">
           {row.table_name}
         </code>
       ),
@@ -66,7 +66,7 @@ export default function AuditLogs() {
     {
       key: 'action', label: 'Aksi', sortKey: 'action',
       render: (row) => (
-        <span className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold ${actionColors[row.action] || 'bg-slate-50 text-slate-600'}`}>
+        <span className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold ${actionColors[row.action] || 'bg-muted text-muted-foreground'}`}>
           {row.action}
         </span>
       ),
@@ -81,18 +81,18 @@ export default function AuditLogs() {
       render: (row) => {
         if (!row.new_data) return '—';
         try {
-          return <code className="text-[11px] leading-4 text-slate-500">{JSON.stringify(JSON.parse(row.new_data), null, 1).slice(0, 120)}</code>;
+          return <code className="text-[11px] leading-4 text-muted-foreground">{JSON.stringify(JSON.parse(row.new_data), null, 1).slice(0, 120)}</code>;
         } catch { return '—'; }
       },
     },
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="animate-fadeIn space-y-6">
       <PageHeader title="Audit Log" />
 
       {error ? (
-        <div className="rounded-[24px] border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+        <div className="rounded-xl border border-border bg-card px-4 py-3 text-sm text-foreground">
           {error}
         </div>
       ) : null}

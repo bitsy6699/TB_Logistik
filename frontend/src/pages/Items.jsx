@@ -219,7 +219,7 @@ export default function Items() {
               const s = e.target.value;
               if (s) setPendingStatus({ id: row.idbarang, status: s, oldStatus: row.status });
             }}
-            className="rounded-lg border border-slate-200 px-1.5 py-1 text-[11px] text-slate-500 outline-none transition hover:border-slate-300 focus:border-slate-400"
+            className="rounded-lg border border-border px-1.5 py-1 text-[11px] text-muted-foreground outline-none transition hover:border-muted-foreground/30 focus:border-ring"
           >
             <option value="">Ubah</option>
             {BARANG_STATUSES.filter(s => s !== row.status).map(s => (
@@ -242,7 +242,7 @@ export default function Items() {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-fadeIn">
       <PageHeader
         title="Data barang"
         actions={
@@ -267,13 +267,13 @@ export default function Items() {
       />
 
       {notice ? (
-        <div className="rounded-[24px] border border-teal-200 bg-teal-50 px-4 py-3 text-sm text-teal-700">
+        <div className="rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 text-sm text-primary">
           {notice}
         </div>
       ) : null}
 
       {error ? (
-        <div className="rounded-[24px] border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+        <div className="rounded-xl border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">
           {error}
         </div>
       ) : null}
@@ -384,6 +384,3 @@ export default function Items() {
     </div>
   );
 }
-
-
-

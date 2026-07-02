@@ -75,17 +75,17 @@ export default function Treks() {
   const selectedOrder = orders.find((o) => String(o.idpengiriman) === String(selectedOrderId));
 
   return (
-    <div className="space-y-6">
+    <div className="animate-fadeIn space-y-6">
       <PageHeader title="Lacakan Pengiriman" />
 
       {notice ? (
-        <div className="rounded-[24px] border border-teal-200 bg-teal-50 px-4 py-3 text-sm text-teal-700">
+        <div className="rounded-xl border border-border bg-card px-4 py-3 text-sm text-foreground">
           {notice}
         </div>
       ) : null}
 
       {error ? (
-        <div className="rounded-[24px] border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+        <div className="rounded-xl border border-border bg-card px-4 py-3 text-sm text-foreground">
           {error}
         </div>
       ) : null}
@@ -166,7 +166,7 @@ export default function Treks() {
 
           <SectionCard title="Tambah Event Tracking" description="Catat posisi terbaru pengiriman. Status hanya bisa diubah di halaman Pengiriman.">
             <form className="max-w-md space-y-4" onSubmit={handleAddTracking}>
-              <div className="mb-3 rounded-2xl border border-border bg-accent/30 p-3 text-sm">
+              <div className="mb-3 rounded-xl border border-border bg-card p-3 text-sm">
                 <span className="text-muted-foreground">Status saat ini: </span>
                 {selectedOrder?.status ? <StatusBadge status={selectedOrder.status} /> : <span className="text-muted-foreground">—</span>}
               </div>

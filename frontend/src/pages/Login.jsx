@@ -50,29 +50,24 @@ export default function Login() {
   };
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-background px-4 py-12 sm:px-6 lg:px-8">
-      <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute -left-24 -top-24 h-96 w-96 rounded-full bg-primary/20 blur-3xl" />
-        <div className="absolute -right-24 -bottom-24 h-96 w-96 rounded-full bg-ring/20 blur-3xl" />
-      </div>
-
-        <div className="relative w-full max-w-md space-y-6 -translate-y-10">
+    <div className="flex min-h-screen items-center justify-center bg-background px-4 py-12 sm:px-6 lg:px-8">
+      <div className="w-full max-w-md space-y-6">
         <div className="flex flex-col items-center text-center">
-          <div className="mx-auto flex h-40 w-40 items-center justify-center overflow-hidden rounded-2xl bg-transparent animate-fade-in">
+          <div className="mx-auto flex h-24 w-24 items-center justify-center overflow-hidden rounded-full border border-border">
             <img src={logoImg} alt="Logo" className="h-full w-full object-contain" />
           </div>
 
-          <h2 className="mt-6 font-display text-3xl font-semibold tracking-tight">
+          <h2 className="mt-4 font-display text-2xl font-semibold tracking-tight">
             Masuk ke LogistikApp
           </h2>
-          <p className="mt-2 text-sm text-muted-foreground">
+          <p className="mt-1 text-sm text-muted-foreground">
             Silakan masuk untuk mengakses panel manajemen logistik
           </p>
         </div>
 
-        <div className="rounded-[28px] border bg-card p-8 shadow-xl shadow-primary/5">
+        <div className="animate-fadeIn rounded-xl border bg-card shadow-card p-8">
           {error && (
-            <div className="mb-6 rounded-2xl border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+            <div className="mb-6 rounded-xl border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">
               {error}
             </div>
           )}

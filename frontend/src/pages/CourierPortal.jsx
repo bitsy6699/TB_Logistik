@@ -5,6 +5,7 @@ import { getErrorMessage } from '../lib/errors';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '../context/AuthContext';
+import StatusBadge from '../components/StatusBadge';
 import { LogOut, Package, MapPin, ChevronDown, ChevronUp, Camera, QrCode, ScanLine } from 'lucide-react';
 
 const VALID_TRANSITIONS = {
@@ -36,17 +37,15 @@ function UpdateForm({ order, saving, onUpdate, onCancel }) {
 
   return (
     <form onSubmit={handleSubmit} className="mt-4 border-t pt-4">
-      <div className="mb-3 rounded-lg bg-accent/50 p-3">
+      <div className="mb-3 rounded-xl bg-accent/50 p-3">
         <p className="text-xs text-muted-foreground">Status saat ini:</p>
-        <span className="inline-flex items-center rounded-full bg-secondary px-2.5 py-0.5 text-xs font-medium text-secondary-foreground">
-          {order.status}
-        </span>
+        <StatusBadge status={order.status} />
       </div>
       <div className="space-y-3">
         <div>
           <label className="block text-sm font-medium mb-1">Status Baru</label>
           <select
-            className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
+            className="flex h-10 w-full rounded-xl border border-input bg-background px-3 py-2 text-sm"
             value={status}
             onChange={(e) => setStatus(e.target.value)}
             required
@@ -60,7 +59,7 @@ function UpdateForm({ order, saving, onUpdate, onCancel }) {
         <div>
           <label className="block text-sm font-medium mb-1">Lokasi (opsional)</label>
           <input
-            className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
+            className="flex h-10 w-full rounded-xl border border-input bg-background px-3 py-2 text-sm"
             value={lokasi}
             onChange={(e) => setLokasi(e.target.value)}
             placeholder="Contoh: Jakarta - Gudang Utama"
@@ -98,12 +97,12 @@ function QRScanner({ onScan }) {
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
-        {error && <div className="p-2 rounded bg-destructive/10 text-destructive text-xs">{error}</div>}
+        {error && <div className="p-2 rounded-xl bg-destructive/10 text-destructive text-xs">{error}</div>}
         <div>
           <label className="text-sm font-medium">Input Manual (ID Pesanan)</label>
           <div className="flex gap-2 mt-1">
             <input
-              className="flex h-10 flex-1 rounded-lg border border-input bg-background px-3 py-2 text-sm"
+              className="flex h-10 flex-1 rounded-xl border border-input bg-background px-3 py-2 text-sm"
               value={manualInput}
               onChange={e => { setManualInput(e.target.value); setError(null); }}
               placeholder="ORD-123 atau 123"
@@ -190,7 +189,7 @@ export default function CourierPortal() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background animate-fadeIn">
       <header className="border-b sticky top-0 bg-background/95 backdrop-blur z-10">
         <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between">
           <h1 className="text-lg font-bold">TB Logistik — Kurir</h1>
@@ -209,12 +208,12 @@ export default function CourierPortal() {
       </header>
       <main className="max-w-6xl mx-auto px-4 py-6 space-y-6">
         {notice && (
-          <div className="p-3 rounded bg-teal-50 text-teal-700 text-sm border border-teal-200">
+          <div className="p-3 rounded-xl bg-primary/10 text-primary text-sm border border-primary/20">
             {notice}
           </div>
         )}
         {error && (
-          <div className="p-3 rounded bg-destructive/10 text-destructive text-sm">
+          <div className="p-3 rounded-xl bg-destructive/10 text-destructive text-sm">
             {error}
           </div>
         )}
@@ -253,14 +252,12 @@ export default function CourierPortal() {
                         <p className="text-xs text-muted-foreground mt-0.5">{o.nama_barang}</p>
                       )}
                       {o.payment_method === 'cod' && (
-                        <span className="inline-flex items-center rounded-full bg-yellow-100 px-1.5 py-0.5 text-[10px] font-medium text-yellow-800 mt-1">
+                        <span className="inline-flex items-center rounded-full bg-amber-50 px-1.5 py-0.5 text-[10px] font-medium text-amber-700 mt-1">
                           COD — Bayar di Tempat
                         </span>
                       )}
                     </div>
-                    <span className="inline-flex items-center rounded-full bg-secondary px-2.5 py-0.5 text-xs font-medium text-secondary-foreground">
-                      {o.status}
-                    </span>
+                    <StatusBadge status={o.status} />
                   </div>
                 </CardHeader>
                 <CardContent>

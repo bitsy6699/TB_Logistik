@@ -52,7 +52,7 @@ export default function KurirPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="animate-fadeIn space-y-6">
       <PageHeader
         title="Pesanan Saya"
         actions={
@@ -64,10 +64,10 @@ export default function KurirPage() {
       />
 
       {notice ? (
-        <div className="rounded-[24px] border border-teal-200 bg-teal-50 px-4 py-3 text-sm text-teal-700">{notice}</div>
+        <div className="rounded-xl border border-border bg-card px-4 py-3 text-sm text-foreground">{notice}</div>
       ) : null}
       {error ? (
-        <div className="rounded-[24px] border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</div>
+        <div className="rounded-xl border border-border bg-card px-4 py-3 text-sm text-foreground">{error}</div>
       ) : null}
 
       {loading ? (
@@ -88,7 +88,7 @@ export default function KurirPage() {
               <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0 flex-1 space-y-2">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="rounded-2xl bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
+                    <span className="rounded-xl bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
                       {typeof o.idpengiriman === 'number' ? `ORD-${o.idpengiriman}` : o.idpengiriman}
                     </span>
                     <StatusBadge status={o.status} />
@@ -148,7 +148,7 @@ function UpdateForm({ order, saving, onUpdate, onCancel }) {
 
   return (
     <form onSubmit={handleSubmit} className="mt-4 border-t border-border pt-4">
-      <div className="mb-3 rounded-2xl border border-border bg-accent/30 p-3">
+      <div className="mb-3 rounded-xl border border-border bg-card p-3">
         <p className="text-xs text-muted-foreground">Status saat ini:</p>
         <div className="mt-1">
           <StatusBadge status={order.status} />

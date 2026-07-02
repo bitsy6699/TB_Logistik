@@ -121,7 +121,7 @@ export default function Orders() {
       render: (row) => (
         <div className="text-xs">
           <span className="capitalize">{row.payment_method || '—'}</span>
-          <span className={`ml-1 inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium ${row.payment_status === 'paid' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
+          <span className={`ml-1 inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium ${row.payment_status === 'paid' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
             {row.payment_status === 'paid' ? 'Lunas' : 'Pending'}
           </span>
         </div>
@@ -140,7 +140,7 @@ export default function Orders() {
               const newStatus = e.target.value;
               if (newStatus) setPendingStatus({ id: row.idpengiriman, status: newStatus });
             }}
-            className="rounded-lg border border-slate-200 px-1.5 py-1 text-[11px] text-slate-500 outline-none transition hover:border-slate-300 focus:border-slate-400"
+            className="rounded-lg border border-border px-1.5 py-1 text-[11px] text-muted-foreground outline-none transition hover:border-muted-foreground/30 focus:border-ring"
           >
             <option value="">Ubah</option>
             {ORDER_STATUSES.filter(s => s !== row.status).map(s => (
@@ -345,7 +345,7 @@ export default function Orders() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-fadeIn">
       <PageHeader
         title="Data pengiriman"
         actions={
@@ -366,13 +366,13 @@ export default function Orders() {
       />
 
       {notice ? (
-        <div className="rounded-[24px] border border-teal-200 bg-teal-50 px-4 py-3 text-sm text-teal-700">
+        <div className="rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 text-sm text-primary">
           {notice}
         </div>
       ) : null}
 
       {error ? (
-        <div className="rounded-[24px] border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+        <div className="rounded-xl border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">
           {error}
         </div>
       ) : null}
@@ -586,7 +586,7 @@ export default function Orders() {
               const qty = Number(item.jumlah) || 0;
               const subtotal = harga * qty;
               return (
-              <div key={idx} className="mb-3 rounded-2xl border border-border bg-accent/30 p-4">
+              <div key={idx} className="mb-3 rounded-xl border border-border bg-card p-4 shadow-card">
                 <div className="mb-2 flex items-center justify-between">
                   <span className="text-xs font-medium text-muted-foreground">Barang #{idx + 1}</span>
                   {formData.items.length > 1 && (
@@ -728,5 +728,3 @@ export default function Orders() {
     </div>
   );
 }
-
-

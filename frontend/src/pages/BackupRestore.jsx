@@ -135,7 +135,7 @@ export default function BackupRestore() {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="animate-fadeIn space-y-6">
       <PageHeader
         title="Backup & Restore Database"
         actions={
@@ -151,13 +151,13 @@ export default function BackupRestore() {
       />
 
       {notice ? (
-        <div className="rounded-[24px] border border-teal-200 bg-teal-50 px-4 py-3 text-sm text-teal-700">
+        <div className="rounded-xl border border-border bg-card px-4 py-3 text-sm text-foreground">
           {notice}
         </div>
       ) : null}
 
       {error ? (
-        <div className="rounded-[24px] border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+        <div className="rounded-xl border border-border bg-card px-4 py-3 text-sm text-foreground">
           {error}
         </div>
       ) : null}
@@ -204,18 +204,18 @@ export default function BackupRestore() {
       >
         {restoreTarget && (
           <div className="space-y-4">
-            <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+            <div className="rounded-xl border border-border bg-card px-4 py-3 text-sm text-foreground">
               <p className="font-semibold">File: {restoreTarget.filename}</p>
               <p className="mt-1">Ukuran: {formatSize(restoreTarget.size)}</p>
               <p>Dibuat: {new Date(restoreTarget.createdAt).toLocaleString('id-ID')}</p>
             </div>
 
-            <p className="text-sm font-medium text-slate-700">
+            <p className="text-sm font-medium text-foreground">
               Ketik <strong>RESTORE</strong> untuk mengonfirmasi:
             </p>
             <input
               type="text"
-              className="w-full rounded-2xl border border-input bg-background px-4 py-3 text-sm text-foreground outline-none transition placeholder:text-muted-foreground focus:border-ring focus:ring-4 focus:ring-ring/10"
+              className="w-full rounded-xl border border-input bg-background px-4 py-3 text-sm text-foreground outline-none transition placeholder:text-muted-foreground focus:border-ring focus:ring-4 focus:ring-ring/10"
               value={restoreConfirmText}
               onChange={(e) => setRestoreConfirmText(e.target.value)}
               placeholder="Ketik RESTORE"
